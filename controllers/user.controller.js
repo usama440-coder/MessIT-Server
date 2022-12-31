@@ -9,10 +9,10 @@ const {
 // @route   POST /api/v1/users
 // @access  Admin
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, isActive, role, profile, mess } = req.body;
+  const { name, email, isActive, role, profile } = req.body;
 
   // required fields validation
-  if (!checkRequiredFields(name, email, mess)) {
+  if (!checkRequiredFields(name, email)) {
     res.status(400);
     throw new Error("Provide all the fields");
   }
@@ -37,6 +37,7 @@ const registerUser = asyncHandler(async (req, res) => {
     isActive,
     role,
     profile,
+    mess: "63b04b814c7352eb92c3ef64", //temporary
   });
 
   res.status(201).json({ success: true, user });
@@ -45,7 +46,20 @@ const registerUser = asyncHandler(async (req, res) => {
 // @desc    Get all users
 // @route   GET /api/v1/users
 // @access  Admin
+const getUsers = asyncHandler(async (req, res) => {
+  const users = await User.find();
+
+  res.status(200).json({ success: true, users });
+});
+
+// @desc    Get a user
+// @route   GET /api/v1/users/:id
+// @access  all
+const getUser = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+});
 
 module.exports = {
   registerUser,
+  getUsers,
 };
