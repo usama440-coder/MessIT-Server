@@ -35,6 +35,11 @@ const UserSchema = mongoose.Schema(
     profile: {
       type: String,
     },
+    mess: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Mess",
+      required: true,
+    },
   },
   {
     timestamps: true,

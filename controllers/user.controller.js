@@ -1,35 +1,33 @@
 const User = require("../models/User.model");
+const asyncHandler = require("express-async-handler");
+const {
+  registerUserValidator,
+  checkRequiredFields,
+} = require("../utils/validator");
 
 // @desc    Register user
 // @route   POST /api/v1/users
 // @access  Admin
-const registerUser = async (req, res) => {
-  const { name, email, isActive, role, profile } = req.body;
+const registerUser = asyncHandler(async (req, res) => {
+  const { name, email, isActive, role, profile, mess } = req.body;
 
-  //   check required fields
-  if (!name || !email) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Please provide required fields" });
+  // required fields validation
+  if (!checkRequiredFields(name, email, mess)) {
+    res.status(400);
+    throw new Error("Provide all the fields");
   }
 
   //   validation
-  if (
-    name.length < 4 ||
-    name.length > 100 ||
-    !/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
-  ) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid name or email" });
+  if (!registerUserValidator(name, email)) {
+    res.status(400);
+    throw new Error("Invalid name or email");
   }
 
   //   check if already exists
   const isExist = await User.findOne({ email });
   if (isExist) {
-    return res
-      .status(409)
-      .json({ success: false, message: "User already exists" });
+    res.status(409);
+    throw new Error("User already exists");
   }
 
   //   register
@@ -42,7 +40,11 @@ const registerUser = async (req, res) => {
   });
 
   res.status(201).json({ success: true, user });
-};
+});
+
+// @desc    Get all users
+// @route   GET /api/v1/users
+// @access  Admin
 
 module.exports = {
   registerUser,
