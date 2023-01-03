@@ -1,5 +1,3 @@
-const asyncHandler = require("express-async-handler");
-
 // @controller  general
 // @message     Check if required fields are given
 const checkRequiredFields = (...fields) => {
@@ -26,7 +24,18 @@ const registerUserValidator = (name, email) => {
   return true;
 };
 
+// @controller  add an item
+// @message     fields regex validation
+const addItemValidator = (name, units) => {
+  if (name?.length < 4 || name?.length > 40 || units < 0) {
+    return false;
+  }
+
+  return true;
+};
+
 module.exports = {
   registerUserValidator,
   checkRequiredFields,
+  addItemValidator,
 };

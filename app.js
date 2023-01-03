@@ -5,6 +5,7 @@ const errorHandler = require("./middleware/error.middleware");
 const connectDB = require("./database/db");
 const userRouter = require("./routes/user.route");
 const messRouter = require("./routes/mess.route");
+const itemRouter = require("./routes/item.route");
 require("dotenv").config();
 
 // middleware
@@ -14,6 +15,7 @@ app.use(cors());
 // routes
 app.use("/api/v1", userRouter);
 app.use("/api/v1", messRouter);
+app.use("/api/v1/items", itemRouter);
 
 // error middleware
 app.use(errorHandler);

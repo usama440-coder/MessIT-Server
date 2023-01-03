@@ -56,10 +56,63 @@ const getUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/users/:id
 // @access  all
 const getUser = asyncHandler(async (req, res) => {
-  const id = req.params.id;
+  const _id = req.params.id;
+
+  const user = await User.findOne({ _id });
+
+  if (!checkRequiredFields(user)) {
+    res.status(400);
+    throw new Error("No User Found");
+  }
+
+  res.status(200).json({
+    success: true,
+    user,
+  });
+});
+
+// @desc    Delete a user
+// @route   DELETE /api/v1/users
+// @access  Admin
+const deleteUser = asyncHandler(async (req, res) => {
+  const _id = req.params.id;
+
+  const user = await User.findOne({ _id });
+
+  if (!checkRequiredFields(user)) {
+    res.status(400);
+    throw new Error("User not found");
+  }
+
+  await User.deleteOne({ _id });
+
+  res.status(200).json({ success: true, message: "User deleted successfully" });
+});
+
+// @desc    Update a user
+// @route   PUT /api/v1/users
+// @access  Admin (password exclude), User (just password)
+const updateUser = asyncHandler(async (req, res) => {
+  const _id = req.params.id;
+
+  const { name, email, isActive, role, mess, profile } = req.body;
+
+  const user = await User.findOne({ _id });
+
+  if (!checkRequiredFields(user)) {
+    res.status(400);
+    throw new Error("User not found");
+  }
+
+  await User.updateOne({ _id }, { name, email, isActive, role, mess, profile });
+
+  res.status(200).json({ success: true, message: "User updated successfully" });
 });
 
 module.exports = {
   registerUser,
   getUsers,
+  getUser,
+  deleteUser,
+  updateUser,
 };
