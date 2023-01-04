@@ -34,8 +34,19 @@ const addItemValidator = (name, units) => {
   return true;
 };
 
+// @controller  add an meal type
+// @message     fields regex validation
+const addMealTypeValidator = (type) => {
+  if (type?.length < 3 || type?.length > 50) {
+    return false;
+  }
+
+  return true;
+};
+
 module.exports = {
   registerUserValidator,
   checkRequiredFields,
   addItemValidator,
+  addMealTypeValidator,
 };
