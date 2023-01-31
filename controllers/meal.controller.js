@@ -1,6 +1,7 @@
 const Meal = require("../models/Meal.model");
 const Mess = require("../models/Mess.model");
 const Item = require("../models/Item.model");
+const User = require("../models/User.model");
 const MealType = require("../models/MealType.model");
 const asyncHandler = require("express-async-handler");
 const { checkRequiredFields } = require("../utils/validator");
