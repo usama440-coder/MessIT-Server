@@ -9,7 +9,7 @@ const { checkRequiredFields } = require("../utils/validator");
 // @access  User
 const openMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  const userId = "63d8c1d121280c0d150245de";
+  const userId = "63d8c1d121280c0d150245de"; // temporary
   const { isOpen, items } = req.body;
 
   //   required fields validator not used
@@ -37,18 +37,19 @@ const openMeal = asyncHandler(async (req, res) => {
   //   else delete that entry
   if (isOpen === true) {
     // user already in collection
+    // update items quantity else create a new one
     const userExists = await UserMeal.findOne({ user: userId, meal: _id });
     if (userExists) {
-      res.status(400);
-      throw new Error("User meal already opened");
+      await UserMeal.updateOne({ user: userId, meal: _id }, { items });
+      res.status(200).json({ success: true, message: "User meal updated" });
+    } else {
+      const userMeal = await UserMeal.create({
+        user: userId,
+        meal: _id,
+        items,
+      });
+      res.status(200).json({ success: true, userMeal });
     }
-    const userMeal = await UserMeal.create({
-      user: userId,
-      meal: _id,
-      items,
-    });
-
-    res.status(200).json({ success: true, userMeal });
   } else {
     // user exists in current meal
     const userExists = await UserMeal.findOne({ user: userId, meal: _id });
