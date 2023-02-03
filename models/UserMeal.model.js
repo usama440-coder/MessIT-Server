@@ -17,14 +17,7 @@ const UserMealSchema = mongoose.Schema(
         itemId: {
           type: mongoose.Schema.Types.ObjectId,
           required: true,
-        },
-        itemName: {
-          type: String,
-          required: true,
-        },
-        itemUnits: {
-          type: Number,
-          required: true,
+          ref: "Item",
         },
         itemQuantity: {
           type: Number,

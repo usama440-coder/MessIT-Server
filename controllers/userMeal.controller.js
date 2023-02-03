@@ -9,7 +9,7 @@ const { checkRequiredFields } = require("../utils/validator");
 // @access  User
 const openMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  const userId = "63d8c1d121280c0d150245de"; // temporary
+  const userId = "63d8c1fe21280c0d150245e4"; // temporary
   const { isOpen, items } = req.body;
 
   //   required fields validator not used

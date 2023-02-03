@@ -10,7 +10,7 @@ const BillSchema = mongoose.Schema(
       type: Date,
       required: true,
     },
-    units: {
+    totalUnits: {
       type: Number,
       required: true,
     },
@@ -18,12 +18,13 @@ const BillSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    additionalAmount: {
+    additionalCharges: {
       type: Number,
       required: true,
     },
-    amount: {
+    netAmount: {
       type: Number,
+      required: true,
     },
     cashier: {
       type: mongoose.Schema.Types.ObjectId,
@@ -34,6 +35,10 @@ const BillSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    payment: {
+      type: Number,
+      default: 0,
     },
   },
   {
