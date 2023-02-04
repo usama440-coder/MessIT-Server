@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const ItemSchema = mongoose.Schema(
   {
-    name: {
+    title: {
       type: String,
       required: [true, "Item name required"],
-      unique: [true, "Item already exists"],
+      unique: false,
       minLength: [4, "Cannot be less than 4 characters"],
       maxLength: [40, "Cannot be greater then 40 characters"],
     },

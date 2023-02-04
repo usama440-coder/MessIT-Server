@@ -6,12 +6,20 @@ const {
   getUser,
   deleteUser,
   updateUser,
+  loginUser,
 } = require("../controllers/user.controller");
+const { protect, permit } = require("../middleware/auth.middleware");
 
-userRouter.post("/users", registerUser);
-userRouter.get("/users", getUsers);
-userRouter.get("/users/:id", getUser);
-userRouter.delete("/users/:id", deleteUser);
-userRouter.put("/users/:id", updateUser);
+userRouter.post("/", protect, permit("admin"), registerUser);
+userRouter.post("/login", loginUser);
+userRouter.get(
+  "/",
+  protect,
+  permit("admin", "secretary", "cashier", "staff"),
+  getUsers
+);
+userRouter.get("/:id", protect, getUser);
+userRouter.delete("/:id", protect, permit("admin"), deleteUser);
+userRouter.put("/:id", protect, permit("admin"), updateUser);
 
 module.exports = userRouter;

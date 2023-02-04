@@ -1,4 +1,5 @@
 const Item = require("../models/Item.model");
+const Mess = require("../models/Mess.model");
 const asyncHandler = require("express-async-handler");
 const { checkRequiredFields, addItemValidator } = require("../utils/validator");
 
@@ -6,33 +7,46 @@ const { checkRequiredFields, addItemValidator } = require("../utils/validator");
 // @route   POST /api/v1/items
 // @access  Admin, Secretary
 const addItem = asyncHandler(async (req, res) => {
-  const { name, units } = req.body;
+  const { title, units, mess } = req.body;
 
   // check fields are given
-  if (!checkRequiredFields(name, units)) {
+  if (!checkRequiredFields(title, units)) {
     res.status(400);
     throw new Error("Name or unit not provided");
   }
 
+  // validation
+  if (!addItemValidator(title, units)) {
+    res.status(400);
+    throw new Error("Invalid values for name and units");
+  }
+
+  // mess Exists
+  const messExists = await Mess.findOne({ _id: mess });
+  if (!messExists) {
+    res.status(400);
+    throw new Error("Mess not found");
+  }
+
+  // sec can add item of its own mess
+  // admin can do it for all
+  if (req.user.role === "secretary" && req.user.mess.toString() !== mess) {
+    res.status(400);
+    throw new Error("You can add item to your mess only");
+  }
+
   //   item already exists
-  const isExist = await Item.findOne({ name });
+  const isExist = await Item.findOne({ title, mess });
   if (isExist) {
     res.status(400);
     throw new Error("Item already exists");
   }
 
-  // validation
-  if (!addItemValidator(name, units)) {
-    res.status(400);
-    throw new Error("Invalid values for name and units");
-  }
-
   const item = await Item.create({
-    name,
+    title,
     units,
-    mess: "63b04b814c7352eb92c3ef64", //temporary
+    mess,
   });
-
   res.status(201).json({ success: true, item });
 });
 

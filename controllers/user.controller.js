@@ -1,18 +1,55 @@
 const User = require("../models/User.model");
+const Mess = require("../models/Mess.model");
 const asyncHandler = require("express-async-handler");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const {
   registerUserValidator,
   checkRequiredFields,
 } = require("../utils/validator");
 
+// @desc    Login User
+// @route   POST /api/v1/users/login
+// @access  User
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  // check required fields
+  if (!checkRequiredFields(email, password)) {
+    res.status(400);
+    throw new Error("Please enter required fields");
+  }
+
+  const user = await User.findOne({ email });
+
+  // user exists and password is correct
+  if (user && (await bcrypt.compare(password, user.password))) {
+    // generate token
+    const token = jwt.sign(
+      {
+        id: user._id.toString(),
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      }
+    );
+
+    res.status(200).json({ success: true, user, token });
+  } else {
+    res.status(400);
+    throw new Error("Invalid email or password");
+  }
+});
+
 // @desc    Register user
 // @route   POST /api/v1/users
 // @access  Admin
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, isActive, role, profile } = req.body;
+  const { name, email, isActive, role, profile, password, mess } = req.body;
 
   // required fields validation
-  if (!checkRequiredFields(name, email)) {
+  if (!checkRequiredFields(name, email, password, mess)) {
     res.status(400);
     throw new Error("Provide all the fields");
   }
@@ -30,14 +67,26 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new Error("User already exists");
   }
 
+  // mess exists
+  const messExists = await Mess.findOne({ _id: mess });
+  if (!messExists) {
+    res.status(400);
+    throw new Error("Mess not found");
+  }
+
+  // hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = bcrypt.hashSync(password, salt);
+
   //   register
   const user = await User.create({
     name,
     email,
+    password: hashedPassword,
     isActive,
     role,
     profile,
-    mess: "63b04b814c7352eb92c3ef64", //temporary
+    mess,
   });
 
   res.status(201).json({ success: true, user });
@@ -45,20 +94,37 @@ const registerUser = asyncHandler(async (req, res) => {
 
 // @desc    Get all users
 // @route   GET /api/v1/users
-// @access  Admin
+// @access  Sec, Staff, Cashier --> (own mess), Admin
 const getUsers = asyncHandler(async (req, res) => {
-  const users = await User.find();
+  let users;
 
-  res.status(200).json({ success: true, users });
+  // sec, cashier, staff can view users of their own mess only
+  if (["secretary", "cashier", "staff"].includes(req.user.role)) {
+    users = await User.find({ mess: req.user.mess }).select("-password");
+    res.status(200).json({ success: true, users });
+  } else {
+    users = await User.find();
+    res.status(200).json({ success: true, users }).select("-password");
+  }
 });
 
 // @desc    Get a user
 // @route   GET /api/v1/users/:id
-// @access  all
+// @access  Sec, Cashier, Staff --> (own mess), Admin
+//          User (own profile only)
 const getUser = asyncHandler(async (req, res) => {
   const _id = req.params.id;
+  let user;
 
-  const user = await User.findOne({ _id });
+  // Sec, Cashier, Staff can read user of their own mess
+  // User can view profile of its own
+  if (["secretary", "cashier", "staff"].includes(req.user.role)) {
+    user = await User.findOne({ _id, mess: req.user.mess }).select("-password");
+  } else if (req.user.role === "user") {
+    user = await User.findOne({ _id: req.user.id }).select("-password");
+  } else {
+    user = await User.findOne({ _id }).select("-password");
+  }
 
   if (!checkRequiredFields(user)) {
     res.status(400);
@@ -91,7 +157,7 @@ const deleteUser = asyncHandler(async (req, res) => {
 
 // @desc    Update a user
 // @route   PUT /api/v1/users
-// @access  Admin (password exclude), User (just password)
+// @access  Admin
 const updateUser = asyncHandler(async (req, res) => {
   const _id = req.params.id;
 
@@ -115,4 +181,5 @@ module.exports = {
   getUser,
   deleteUser,
   updateUser,
+  loginUser,
 };

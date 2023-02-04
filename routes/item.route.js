@@ -7,8 +7,9 @@ const {
   deleteItem,
   updateItem,
 } = require("../controllers/item.controller");
+const { protect, permit } = require("../middleware/auth.middleware");
 
-itemRouter.post("/", addItem);
+itemRouter.post("/", protect, permit("admin", "secretary"), addItem);
 itemRouter.get("/", getItems);
 itemRouter.get("/:id", getItem);
 itemRouter.delete("/:id", deleteItem);

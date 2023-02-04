@@ -17,7 +17,7 @@ app.use(express.json());
 app.use(cors());
 
 // routes
-app.use("/api/v1", userRouter);
+app.use("/api/v1/users", userRouter);
 app.use("/api/v1", messRouter);
 app.use("/api/v1/items", itemRouter);
 app.use("/api/v1/mealType", mealTypeRouter);
