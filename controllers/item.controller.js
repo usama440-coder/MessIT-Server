@@ -5,7 +5,7 @@ const { checkRequiredFields, addItemValidator } = require("../utils/validator");
 
 // @desc    Add an item
 // @route   POST /api/v1/items
-// @access  Admin, Secretary
+// @access  Admin, Secretary(own mess only)
 const addItem = asyncHandler(async (req, res) => {
   const { title, units, mess } = req.body;
 
@@ -52,19 +52,33 @@ const addItem = asyncHandler(async (req, res) => {
 
 // @desc    Get all items
 // @route   GET /api/v1/items
-// @access  User
+// @access  Admin, User (own mess only)
 const getItems = asyncHandler(async (req, res) => {
-  const items = await Item.find();
+  let items;
 
-  res.status(200).json({ success: true, items });
+  // sec, cashier, staff, users can view items of their own mess only
+  if (["secretary", "cashier", "staff", "user"].includes(req.user.role)) {
+    items = await Item.find({ mess: req.user.mess });
+    res.status(200).json({ success: true, items });
+  } else {
+    items = await Item.find();
+    res.status(200).json({ success: true, items });
+  }
 });
 
 // @desc    Get a single item
 // @route   GET /api/v1/items/:id
-// @access  User
+// @access  Admin, User(own mess only)
 const getItem = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  const item = await Item.find({ _id });
+  let item;
+
+  // sec, cashier, staff, users can view items of their own mess only
+  if (["secretary", "cashier", "staff", "user"].includes(req.user.role)) {
+    item = await Item.findOne({ _id, mess: req.user.mess });
+  } else {
+    item = await Item.findOne({ _id });
+  }
 
   if (!checkRequiredFields(item)) {
     res.status(400);
@@ -76,11 +90,18 @@ const getItem = asyncHandler(async (req, res) => {
 
 // @desc    Delete a single item
 // @route   DELETE /api/v1/items/:id
-// @access  Admin, Secretary
+// @access  Admin, Secretary (own mess only)
 const deleteItem = asyncHandler(async (req, res) => {
   const _id = req.params.id;
+  let item;
 
-  const item = await Item.findOne({ _id });
+  // Sec can delete item of its own mess
+  // admin has rights to delete any item in any mess
+  if (req.user.role === "secretary") {
+    item = await Item.findOne({ _id, mess: req.user.mess });
+  } else {
+    item = await Item.findOne({ _id });
+  }
 
   if (!checkRequiredFields(item)) {
     res.status(400);
@@ -98,13 +119,24 @@ const deleteItem = asyncHandler(async (req, res) => {
 const updateItem = asyncHandler(async (req, res) => {
   const _id = req.params.id;
   const { name, units } = req.body;
+  let item;
 
-  const item = await Item.findOne({ _id });
+  if (req.user.role === "secretary") {
+    item = await Item.findOne({ _id, mess: req.user.mess });
+  } else {
+    item = await Item.findOne({ _id });
+  }
 
-  //   fields are given
-  if (!checkRequiredFields(item)) {
+  // fields are given
+  if (!checkRequiredFields(name) && !checkRequiredFields(units)) {
     res.status(400);
-    throw new Error("Item not found");
+    throw new Error("Please provide required fields");
+  }
+
+  // item exists
+  if (!item) {
+    res.status(400);
+    throw new Error("Item does not exist");
   }
 
   //   validation

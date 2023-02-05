@@ -6,6 +6,7 @@ const MessSchema = mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      uppercase: true,
     },
   },
   {

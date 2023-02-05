@@ -61,6 +61,12 @@ const deleteMess = asyncHandler(async (req, res) => {
 const updateMess = asyncHandler(async (req, res) => {
   const { name } = req.body;
 
+  // check field is given
+  if (!name) {
+    res.status(400);
+    throw new Error("Please provide required field");
+  }
+
   const _id = req.params.id;
 
   // check if mess exists
@@ -75,9 +81,27 @@ const updateMess = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: "Mess Updated successfully" });
 });
 
+// @desc    Get a single mess
+// @route   GET /api/v1/mess/:id
+// @access  User
+const getAMess = asyncHandler(async (req, res) => {
+  const _id = req.params.id;
+
+  const mess = await Mess.findOne({ _id });
+
+  // mess exists
+  if (!mess) {
+    res.status(400);
+    throw new Error("Mess not found");
+  }
+
+  res.status(200).json({ success: true, mess });
+});
+
 module.exports = {
   createMess,
   getMess,
   deleteMess,
   updateMess,
+  getAMess,
 };

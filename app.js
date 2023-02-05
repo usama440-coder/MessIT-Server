@@ -18,7 +18,7 @@ app.use(cors());
 
 // routes
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1", messRouter);
+app.use("/api/v1/mess", messRouter);
 app.use("/api/v1/items", itemRouter);
 app.use("/api/v1/mealType", mealTypeRouter);
 app.use("/api/v1/meal", mealRouter);
