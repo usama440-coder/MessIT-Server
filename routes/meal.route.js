@@ -7,11 +7,12 @@ const {
   getMeal,
   deleteMeal,
 } = require("../controllers/meal.controller");
+const { protect, permit } = require("../middleware/auth.middleware");
 
-mealRouter.post("/", createMeal);
-mealRouter.get("/", getMeals);
-mealRouter.get("/:id", getMeal);
-mealRouter.put("/:id", updateMeal);
-mealRouter.delete("/:id", deleteMeal);
+mealRouter.post("/", protect, permit("admin", "staff"), createMeal);
+mealRouter.get("/", protect, getMeals);
+mealRouter.get("/:id", protect, getMeal);
+mealRouter.put("/:id", protect, permit("admin", "staff"), updateMeal);
+mealRouter.delete("/:id", protect, permit("admin", "staff"), deleteMeal);
 
 module.exports = mealRouter;

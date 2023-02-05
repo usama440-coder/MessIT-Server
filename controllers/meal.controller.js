@@ -8,7 +8,7 @@ const { checkRequiredFields } = require("../utils/validator");
 
 // @desc    Create a new meal
 // @route   POST /api/v1/meal
-// @access  Admin, Staff
+// @access  Admin, Staff (own mess only)
 const createMeal = asyncHandler(async (req, res) => {
   const { type, validFrom, validUntil, closingTime, mess, items } = req.body;
 
@@ -26,23 +26,22 @@ const createMeal = asyncHandler(async (req, res) => {
     throw new Error("Please enter atleast one item");
   }
 
-  // meal type exists
-  const mealTypeExists = await MealType.findOne({ type });
-  if (!checkRequiredFields(mealTypeExists)) {
-    res.status(404);
-    throw new Error("Meal type not found");
+  // staff can add meal to its own mess only
+  if (req.user.role === "staff" && req.user.mess.toString() !== mess) {
+    res.status(400);
+    throw new Error("You can add meal to your mess only");
   }
 
-  // mess exists
-  const messExists = await Mess.findOne({ _id: mess });
-  if (!checkRequiredFields(messExists)) {
+  // meal type exists and mess exist
+  const mealTypeExists = await MealType.findOne({ type, mess });
+  if (!checkRequiredFields(mealTypeExists)) {
     res.status(404);
-    throw new Error("Mess not found");
+    throw new Error("Meal type not found for this mess");
   }
 
   // items exists
   for (const item of items) {
-    let itemExists = await Item.findOne({ _id: item.itemId });
+    let itemExists = await Item.findOne({ _id: item.itemId, mess });
     if (!checkRequiredFields(itemExists)) {
       res.status(404);
       throw new Error("Item not found");
@@ -63,11 +62,32 @@ const createMeal = asyncHandler(async (req, res) => {
 
 // @desc    Get all meals
 // @route   GET /api/v1/meal
-// @access  User
+// @access  User (for its mess), Admin
 const getMeals = asyncHandler(async (req, res) => {
-  const meals = await Meal.find();
+  let currentMeals;
+  let prevMeals;
+  const date = new Date();
 
-  res.status(200).json({ success: true, meals });
+  // user can access meals of its own mess only
+  if (req.user.role !== "admin") {
+    currentMeals = await Meal.find({
+      mess: req.user.mess,
+      validUntil: { $gte: date },
+    });
+    prevMeals = await Meal.find({
+      mess: req.user.mess,
+      validUntil: { $lt: date },
+    });
+  } else {
+    currentMeals = await Meal.find({
+      validUntil: { $gte: date },
+    });
+    prevMeals = await Meal.find({
+      validUntil: { $lt: date },
+    });
+  }
+
+  res.status(200).json({ success: true, currentMeals, prevMeals });
 });
 
 // @desc    Get a meal
