@@ -92,10 +92,17 @@ const getMeals = asyncHandler(async (req, res) => {
 
 // @desc    Get a meal
 // @route   GET /api/v1/meal/:id
-// @access  User
+// @access  User (for its mess), Admin
 const getMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  const meal = await Meal.findOne({ _id });
+  let meal;
+
+  // User can access meal of its own mess
+  if (req.user.role !== "admin") {
+    meal = await Meal.findOne({ _id, mess: req.user.mess });
+  } else {
+    meal = await Meal.findOne({ _id });
+  }
 
   if (!checkRequiredFields(meal)) {
     res.status(404);
@@ -107,22 +114,45 @@ const getMeal = asyncHandler(async (req, res) => {
 
 // @desc    Update a meal
 // @route   PUT /api/v1/meal/:id
-// @access  Admin, Staff
+// @access  Admin, Staff (own mess only)
 const updateMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
   const { type, validFrom, validUntil, closingTime, items } = req.body;
+  let mealExists;
+
+  // Meal exists
+  if (req.user.role !== "admin") {
+    mealExists = await Meal.findOne({ _id, mess: req.user.mess });
+  } else {
+    mealExists = await Meal.findOne({ _id });
+  }
+  if (!mealExists) {
+    res.status(400);
+    throw new Error("Meal not found");
+  }
 
   // meal type exists
+  // for admin (current meal's mess id)
+  // for staff (its own mess)
   if (type) {
-    const mealTypeExists = await MealType.findOne({ type });
-    if (!checkRequiredFields(mealTypeExists)) {
-      res.status(404);
+    let mealTypeExists;
+    if (req.user.role !== "admin") {
+      mealTypeExists = await MealType.findOne({ type, mess: req.user.mess });
+    } else {
+      mealTypeExists = await MealType.findOne({ type, mess: mealExists.mess });
+    }
+
+    if (!mealTypeExists) {
+      res.status(400);
       throw new Error("Meal type not found");
     }
   }
 
   // items exists
+  // staff -- only add items of its mess
+  // admin -- add items of current meal's mess == item's mess
   if (items) {
+    let itemExists;
     // items array must contain one element
     if (items.length == 0) {
       res.status(400);
@@ -131,7 +161,17 @@ const updateMeal = asyncHandler(async (req, res) => {
 
     // items exist
     for (const item of items) {
-      let itemExists = await Item.findOne({ _id: item.itemId });
+      if (req.user.role !== "admin") {
+        itemExists = await Item.findOne({
+          _id: item.itemId,
+          mess: req.user.mess,
+        });
+      } else {
+        itemExists = await Item.findOne({
+          _id: item.itemId,
+          mess: mealExists.mess,
+        });
+      }
       if (!checkRequiredFields(itemExists)) {
         res.status(404);
         throw new Error("Item not found");
@@ -149,11 +189,18 @@ const updateMeal = asyncHandler(async (req, res) => {
 
 // @desc    Delete a meal
 // @route   DELETE /api/v1/meal/:id
-// @access  Admin, Staff
+// @access  Admin, Staff (own mess only)
 const deleteMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
+  let meal;
 
-  const meal = await Meal.findOne({ _id });
+  // staff -- own mess
+  // admin -- all
+  if (req.user.role !== "admin") {
+    meal = await Meal.findOne({ _id, mess: req.user.mess });
+  } else {
+    meal = await Meal.findOne({ _id });
+  }
 
   if (!checkRequiredFields(meal)) {
     res.status(404);
