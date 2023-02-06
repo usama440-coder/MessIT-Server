@@ -5,10 +5,9 @@ const { checkRequiredFields } = require("../utils/validator");
 
 // @desc    Generate bill all users
 // @route   POST /api/v1/bill
-// @access  Cashier, Admin
+// @access  Cashier (own mess), Admin
 const generateBills = asyncHandler(async (req, res) => {
   const { from, to, unitCost, additionalCharges } = req.body;
-  const cashier = "63d8c1ef21280c0d150245e1";
 
   // check required fields
   if (!checkRequiredFields(from, to, unitCost, additionalCharges)) {
@@ -16,7 +15,33 @@ const generateBills = asyncHandler(async (req, res) => {
     throw new Error("Please provide required fields");
   }
 
+  // // cahier -- own mess
+  // if (req.user.role === "cashier") {
+
+  // }
+
   const billsData = await UserMeal.aggregate([
+    {
+      $lookup: {
+        from: "meals",
+        localField: "meal",
+        foreignField: "_id",
+        as: "mealData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$mealData",
+      },
+    },
+    {
+      $match: {
+        "mealData.validUntil": {
+          $gte: new Date(from),
+          $lte: new Date(to),
+        },
+      },
+    },
     {
       $unwind: {
         path: "$items",
@@ -77,7 +102,7 @@ const generateBills = asyncHandler(async (req, res) => {
           $add: [{ $multiply: ["$totalUnits", unitCost] }, additionalCharges],
         },
         cashier: {
-          $literal: cashier,
+          $literal: req.user.id,
         },
       },
     },

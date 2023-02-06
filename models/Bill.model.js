@@ -26,6 +26,14 @@ const BillSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    isPaid: {
+      type: Boolean,
+      default: false,
+    },
+    payment: {
+      type: Number,
+      default: 0,
+    },
     cashier: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -35,10 +43,6 @@ const BillSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
-    payment: {
-      type: Number,
-      default: 0,
     },
   },
   {
