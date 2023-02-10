@@ -46,10 +46,11 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/users
 // @access  Admin
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, isActive, role, profile, password, mess } = req.body;
+  const { name, email, isActive, role, profile, password, mess, contact } =
+    req.body;
 
   // required fields validation
-  if (!checkRequiredFields(name, email, password, mess)) {
+  if (!checkRequiredFields(name, email, password, mess, contact)) {
     res.status(400);
     throw new Error("Provide all the fields");
   }
@@ -87,6 +88,7 @@ const registerUser = asyncHandler(async (req, res) => {
     role,
     profile,
     mess,
+    contact,
   });
 
   res.status(201).json({ success: true, user });
@@ -100,12 +102,69 @@ const getUsers = asyncHandler(async (req, res) => {
 
   // sec, cashier, staff can view users of their own mess only
   if (["secretary", "cashier", "staff"].includes(req.user.role)) {
-    users = await User.find({ mess: req.user.mess }).select("-password");
-    res.status(200).json({ success: true, users });
+    users = await User.aggregate([
+      {
+        $match: {
+          mess: new ObjectId(req.user.mess),
+        },
+      },
+      {
+        $lookup: {
+          from: "messes",
+          localField: "mess",
+          foreignField: "_id",
+          as: "messData",
+        },
+      },
+      {
+        $unwind: {
+          path: "$messData",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          isActive: 1,
+          role: 1,
+          createdAt: 1,
+          contact: 1,
+          messData: 1,
+        },
+      },
+    ]);
   } else {
-    users = await User.find();
-    res.status(200).json({ success: true, users }).select("-password");
+    users = await User.aggregate([
+      {
+        $lookup: {
+          from: "messes",
+          localField: "mess",
+          foreignField: "_id",
+          as: "messData",
+        },
+      },
+      {
+        $unwind: {
+          path: "$messData",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          isActive: 1,
+          role: 1,
+          contact: 1,
+          createdAt: 1,
+          messData: 1,
+        },
+      },
+    ]);
   }
+
+  res.status(200).json({ success: true, users });
 });
 
 // @desc    Get a user
