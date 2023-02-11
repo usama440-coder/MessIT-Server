@@ -19,7 +19,7 @@ const protect = asyncHandler(async (req, res, next) => {
 const permit = (...roles) => {
   // return a middleware
   return (req, res, next) => {
-    if (roles.includes(req.user.role)) {
+    if (roles.includes(req.user?.role)) {
       next();
     } else {
       res.status(400);
