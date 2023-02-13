@@ -9,10 +9,20 @@ const {
 } = require("../controllers/item.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
 
-itemRouter.post("/", protect, permit("admin", "secretary"), addItem);
-itemRouter.get("/", protect, getItems);
-itemRouter.get("/:id", protect, getItem);
-itemRouter.delete("/:id", protect, permit("admin", "secretary"), deleteItem);
-itemRouter.put("/:id", protect, permit("admin", "secretary"), updateItem);
+itemRouter.post("/", protect, permit("secretary"), addItem);
+itemRouter.get(
+  "/",
+  protect,
+  permit("user", "secretary", "staff", "cashier"),
+  getItems
+);
+itemRouter.get(
+  "/:id",
+  protect,
+  permit("user", "secretary", "staff", "cashier"),
+  getItem
+);
+itemRouter.delete("/:id", protect, permit("secretary"), deleteItem);
+itemRouter.put("/:id", protect, permit("secretary"), updateItem);
 
 module.exports = itemRouter;

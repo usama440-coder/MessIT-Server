@@ -8,9 +8,9 @@ const {
 
 // @desc    Add a meal type
 // @route   POST /api/v1/mealType
-// @access  Secretary, Staff -- (own mess), Admin
+// @access  Secretary (own mess)
 const addMealType = asyncHandler(async (req, res) => {
-  const { type, mess } = req.body;
+  const { type } = req.body;
 
   // check if type given
   if (!checkRequiredFields(type, mess)) {
@@ -24,25 +24,8 @@ const addMealType = asyncHandler(async (req, res) => {
     throw new Error("Invalid value");
   }
 
-  // mess Exists
-  const messExists = await Mess.findOne({ _id: mess });
-  if (!messExists) {
-    res.status(400);
-    throw new Error("Mess not found");
-  }
-
-  // Sec, Staff can add item of its own mess
-  // admin can do it for all
-  if (
-    ["secretary", "staff"].includes(req.user.role) &&
-    req.user.mess.toString() !== mess
-  ) {
-    res.status(400);
-    throw new Error("You can Meal Type to your mess only");
-  }
-
   // check if type already exists
-  const isExist = await MealType.findOne({ type, mess });
+  const isExist = await MealType.findOne({ type, mess: req.user.mess });
   if (isExist) {
     res.status(400);
     throw new Error("Meal type already exists");
@@ -50,7 +33,7 @@ const addMealType = asyncHandler(async (req, res) => {
 
   const mealType = await MealType.create({
     type,
-    mess,
+    mess: req.user.mess,
   });
 
   res.status(200).json({ success: true, mealType });
@@ -58,34 +41,21 @@ const addMealType = asyncHandler(async (req, res) => {
 
 // @desc    Get all meal types
 // @route   GET /api/v1/mealType
-// @access  User (own mess), Admin
+// @access  User (own mess)
 const getMealTypes = asyncHandler(async (req, res) => {
-  let mealTypes;
-
-  // excluding admin, meal type accessible to own mess
-  if (req.user.role !== "admin") {
-    mealTypes = await MealType.find({ mess: req.user.mess });
-  } else {
-    mealTypes = await MealType.find();
-  }
+  const mealTypes = await MealType.find({ mess: req.user.mess });
 
   res.status(200).json({ success: true, mealTypes });
 });
 
 // @desc    Delete a meal type
 // @route   DELETE /api/v1/mealType/:id
-// @access  Admin, Secretary (own mess), Staff (own mess)
+// @access  Secretary (own mess)
 const deleteMealType = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  let mealType;
 
-  // Sec, Staff can delete item of their own mess
-  // admin has rights to delete any item in any mess
-  if (["secretary", "staff"].includes(req.user.role)) {
-    mealType = await MealType.findOne({ _id, mess: req.user.mess });
-  } else {
-    mealType = await MealType.findOne({ _id });
-  }
+  // mealType exists
+  const mealType = await MealType.findOne({ _id, mess: req.user.mess });
 
   //   meal type exists or not
   if (!checkRequiredFields(mealType)) {
@@ -102,11 +72,10 @@ const deleteMealType = asyncHandler(async (req, res) => {
 
 // @desc    Update a meal type
 // @route   PUT /api/v1/mealType/:id
-// @access  Admin, Secretary (own mess), Staff (own mess)
+// @access  Secretary (own mess)
 const updateMealType = asyncHandler(async (req, res) => {
   const _id = req.params.id;
   const { type } = req.body;
-  let mealType;
 
   // check required field
   if (!checkRequiredFields(type)) {
@@ -114,13 +83,7 @@ const updateMealType = asyncHandler(async (req, res) => {
     throw new Error("Please provide required fields");
   }
 
-  // Sec, Staff can delete item of their own mess
-  // admin has rights to delete any item in any mess
-  if (["secretary", "staff"].includes(req.user.role)) {
-    mealType = await MealType.findOne({ _id, mess: req.user.mess });
-  } else {
-    mealType = await MealType.findOne({ _id });
-  }
+  const mealType = await MealType.findOne({ _id, mess: req.user.mess });
 
   //   if meal type exists or not
   if (!checkRequiredFields(mealType)) {

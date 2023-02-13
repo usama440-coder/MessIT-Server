@@ -8,9 +8,9 @@ const { checkRequiredFields } = require("../utils/validator");
 
 // @desc    Create a new meal
 // @route   POST /api/v1/meal
-// @access  Admin, Staff (own mess only)
+// @access  Staff (own mess only)
 const createMeal = asyncHandler(async (req, res) => {
-  const { type, validFrom, validUntil, closingTime, mess, items } = req.body;
+  const { type, validFrom, validUntil, closingTime, items } = req.body;
 
   // required fields
   if (
@@ -26,14 +26,8 @@ const createMeal = asyncHandler(async (req, res) => {
     throw new Error("Please enter atleast one item");
   }
 
-  // staff can add meal to its own mess only
-  if (req.user.role === "staff" && req.user.mess.toString() !== mess) {
-    res.status(400);
-    throw new Error("You can add meal to your mess only");
-  }
-
   // meal type exists and mess exist
-  const mealTypeExists = await MealType.findOne({ type, mess });
+  const mealTypeExists = await MealType.findOne({ type, mess: req.user.mess });
   if (!checkRequiredFields(mealTypeExists)) {
     res.status(404);
     throw new Error("Meal type not found for this mess");
@@ -41,7 +35,10 @@ const createMeal = asyncHandler(async (req, res) => {
 
   // items exists
   for (const item of items) {
-    let itemExists = await Item.findOne({ _id: item.itemId, mess });
+    let itemExists = await Item.findOne({
+      _id: item.itemId,
+      mess: req.user.mess,
+    });
     if (!checkRequiredFields(itemExists)) {
       res.status(404);
       throw new Error("Item not found");
@@ -53,7 +50,7 @@ const createMeal = asyncHandler(async (req, res) => {
     validFrom,
     validUntil,
     closingTime,
-    mess,
+    mess: req.user.mess,
     items,
   });
 
@@ -62,47 +59,31 @@ const createMeal = asyncHandler(async (req, res) => {
 
 // @desc    Get all meals
 // @route   GET /api/v1/meal
-// @access  User (for its mess), Admin
+// @access  User (for its mess)
 const getMeals = asyncHandler(async (req, res) => {
-  let currentMeals;
-  let prevMeals;
   const date = new Date();
 
   // user can access meals of its own mess only
-  if (req.user.role !== "admin") {
-    currentMeals = await Meal.find({
-      mess: req.user.mess,
-      validUntil: { $gte: date },
-    });
-    prevMeals = await Meal.find({
-      mess: req.user.mess,
-      validUntil: { $lt: date },
-    });
-  } else {
-    currentMeals = await Meal.find({
-      validUntil: { $gte: date },
-    });
-    prevMeals = await Meal.find({
-      validUntil: { $lt: date },
-    });
-  }
+  const currentMeals = await Meal.find({
+    validUntil: { $gte: date },
+    mess: req.user.mess,
+  });
+  const prevMeals = await Meal.find({
+    validUntil: { $lt: date },
+    mess: req.user.mess,
+  });
 
   res.status(200).json({ success: true, currentMeals, prevMeals });
 });
 
 // @desc    Get a meal
 // @route   GET /api/v1/meal/:id
-// @access  User (for its mess), Admin
+// @access  User (for its mess)
 const getMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  let meal;
 
   // User can access meal of its own mess
-  if (req.user.role !== "admin") {
-    meal = await Meal.findOne({ _id, mess: req.user.mess });
-  } else {
-    meal = await Meal.findOne({ _id });
-  }
+  const meal = await Meal.findOne({ _id, mess: req.user.mess });
 
   if (!checkRequiredFields(meal)) {
     res.status(404);
@@ -114,33 +95,25 @@ const getMeal = asyncHandler(async (req, res) => {
 
 // @desc    Update a meal
 // @route   PUT /api/v1/meal/:id
-// @access  Admin, Staff (own mess only)
+// @access  Staff (own mess only)
 const updateMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
   const { type, validFrom, validUntil, closingTime, items } = req.body;
-  let mealExists;
 
   // Meal exists
-  if (req.user.role !== "admin") {
-    mealExists = await Meal.findOne({ _id, mess: req.user.mess });
-  } else {
-    mealExists = await Meal.findOne({ _id });
-  }
+  const mealExists = await Meal.findOne({ _id, mess: req.user.mess });
+
   if (!mealExists) {
     res.status(400);
     throw new Error("Meal not found");
   }
 
   // meal type exists
-  // for admin (current meal's mess id)
-  // for staff (its own mess)
   if (type) {
-    let mealTypeExists;
-    if (req.user.role !== "admin") {
-      mealTypeExists = await MealType.findOne({ type, mess: req.user.mess });
-    } else {
-      mealTypeExists = await MealType.findOne({ type, mess: mealExists.mess });
-    }
+    const mealTypeExists = await MealType.findOne({
+      type,
+      mess: mealExists.mess,
+    });
 
     if (!mealTypeExists) {
       res.status(400);
@@ -150,7 +123,6 @@ const updateMeal = asyncHandler(async (req, res) => {
 
   // items exists
   // staff -- only add items of its mess
-  // admin -- add items of current meal's mess == item's mess
   if (items) {
     let itemExists;
     // items array must contain one element
@@ -161,17 +133,10 @@ const updateMeal = asyncHandler(async (req, res) => {
 
     // items exist
     for (const item of items) {
-      if (req.user.role !== "admin") {
-        itemExists = await Item.findOne({
-          _id: item.itemId,
-          mess: req.user.mess,
-        });
-      } else {
-        itemExists = await Item.findOne({
-          _id: item.itemId,
-          mess: mealExists.mess,
-        });
-      }
+      itemExists = await Item.findOne({
+        _id: item.itemId,
+        mess: mealExists.mess,
+      });
       if (!checkRequiredFields(itemExists)) {
         res.status(404);
         throw new Error("Item not found");
@@ -189,18 +154,11 @@ const updateMeal = asyncHandler(async (req, res) => {
 
 // @desc    Delete a meal
 // @route   DELETE /api/v1/meal/:id
-// @access  Admin, Staff (own mess only)
+// @access  Staff (own mess only)
 const deleteMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  let meal;
 
-  // staff -- own mess
-  // admin -- all
-  if (req.user.role !== "admin") {
-    meal = await Meal.findOne({ _id, mess: req.user.mess });
-  } else {
-    meal = await Meal.findOne({ _id });
-  }
+  const meal = await Meal.findOne({ _id, mess: req.user.mess });
 
   if (!checkRequiredFields(meal)) {
     res.status(404);

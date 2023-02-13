@@ -8,24 +8,14 @@ const {
 } = require("../controllers/mealType.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
 
-mealTypeRouter.post(
+mealTypeRouter.post("/", protect, permit("secretary"), addMealType);
+mealTypeRouter.get(
   "/",
   protect,
-  permit("admin", "secretary", "staff"),
-  addMealType
+  permit("user", "secretary", "staff", "cashier"),
+  getMealTypes
 );
-mealTypeRouter.get("/", protect, getMealTypes);
-mealTypeRouter.delete(
-  "/:id",
-  protect,
-  permit("admin", "secretary", "staff"),
-  deleteMealType
-);
-mealTypeRouter.put(
-  "/:id",
-  protect,
-  permit("admin", "secretary", "staff"),
-  updateMealType
-);
+mealTypeRouter.delete("/:id", protect, permit("secretary"), deleteMealType);
+mealTypeRouter.put("/:id", protect, permit("secretary"), updateMealType);
 
 module.exports = mealTypeRouter;
