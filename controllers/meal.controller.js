@@ -13,10 +13,8 @@ const createMeal = asyncHandler(async (req, res) => {
   const { type, validFrom, validUntil, closingTime, items } = req.body;
 
   // required fields
-  if (
-    !checkRequiredFields(type, validFrom, validUntil, closingTime, mess, items)
-  ) {
-    res.status(200);
+  if (!checkRequiredFields(type, validFrom, validUntil, closingTime, items)) {
+    res.status(400);
     throw new Error("Required values not provided");
   }
 
@@ -64,14 +62,162 @@ const getMeals = asyncHandler(async (req, res) => {
   const date = new Date();
 
   // user can access meals of its own mess only
-  const currentMeals = await Meal.find({
-    validUntil: { $gte: date },
-    mess: req.user.mess,
-  });
-  const prevMeals = await Meal.find({
-    validUntil: { $lt: date },
-    mess: req.user.mess,
-  });
+  const currentMeals = await Meal.aggregate([
+    {
+      $match: {
+        mess: req.user.mess,
+        validUntil: { $gte: date },
+      },
+    },
+    {
+      $unwind: {
+        path: "$items",
+      },
+    },
+    {
+      $lookup: {
+        from: "items",
+        localField: "items.itemId",
+        foreignField: "_id",
+        as: "itemsData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$itemsData",
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        items: {
+          $push: "$itemsData",
+        },
+        type: {
+          $first: "$type",
+        },
+        validFrom: {
+          $first: "$validFrom",
+        },
+        validUntil: {
+          $first: "$validUntil",
+        },
+        closingTime: {
+          $first: "$closingTime",
+        },
+        mess: {
+          $first: "$mess",
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "usermeals",
+        localField: "_id",
+        foreignField: "meal",
+        as: "mealData",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        items: 1,
+        type: 1,
+        validFrom: 1,
+        validUntil: 1,
+        closingTime: 1,
+        mess: 1,
+        totalUsers: {
+          $size: "$mealData",
+        },
+      },
+    },
+    {
+      $sort: {
+        validUntil: 1,
+      },
+    },
+  ]);
+
+  const prevMeals = await Meal.aggregate([
+    {
+      $match: {
+        mess: req.user.mess,
+        validUntil: { $lt: date },
+      },
+    },
+    {
+      $unwind: {
+        path: "$items",
+      },
+    },
+    {
+      $lookup: {
+        from: "items",
+        localField: "items.itemId",
+        foreignField: "_id",
+        as: "itemsData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$itemsData",
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        items: {
+          $push: "$itemsData",
+        },
+        type: {
+          $first: "$type",
+        },
+        validFrom: {
+          $first: "$validFrom",
+        },
+        validUntil: {
+          $first: "$validUntil",
+        },
+        closingTime: {
+          $first: "$closingTime",
+        },
+        mess: {
+          $first: "$mess",
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "usermeals",
+        localField: "_id",
+        foreignField: "meal",
+        as: "mealData",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        items: 1,
+        type: 1,
+        validFrom: 1,
+        validUntil: 1,
+        closingTime: 1,
+        mess: 1,
+        totalUsers: {
+          $size: "$mealData",
+        },
+      },
+    },
+  ]);
+  // const currentMeals = await Meal.find({
+  //   validUntil: { $gte: date },
+  //   mess: req.user.mess,
+  // });
+  // const prevMeals = await Meal.find({
+  //   validUntil: { $lt: date },
+  //   mess: req.user.mess,
+  // });
 
   res.status(200).json({ success: true, currentMeals, prevMeals });
 });

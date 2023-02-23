@@ -13,7 +13,7 @@ const addMealType = asyncHandler(async (req, res) => {
   const { type } = req.body;
 
   // check if type given
-  if (!checkRequiredFields(type, mess)) {
+  if (!checkRequiredFields(type)) {
     res.status(400);
     throw new Error("Meal type not provided");
   }

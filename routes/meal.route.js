@@ -12,14 +12,14 @@ const { protect, permit } = require("../middleware/auth.middleware");
 mealRouter.post("/", protect, permit("staff"), createMeal);
 mealRouter.get(
   "/",
-  permit("user", "sercretary", "staff", "cashier"),
   protect,
+  permit("user", "secretary", "staff", "cashier"),
   getMeals
 );
 mealRouter.get(
   "/:id",
   protect,
-  permit("user", "sercretary", "staff", "cashier"),
+  permit("user", "secretary", "staff", "cashier"),
   getMeal
 );
 mealRouter.put("/:id", protect, permit("staff"), updateMeal);
