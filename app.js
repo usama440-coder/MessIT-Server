@@ -10,6 +10,7 @@ const mealTypeRouter = require("./routes/mealType.route");
 const mealRouter = require("./routes/meal.route");
 const userMealRouter = require("./routes/userMeal.route");
 const billRouter = require("./routes/bill.route");
+const menuRouter = require("./routes/menu.route");
 require("dotenv").config();
 
 // middleware
@@ -24,6 +25,7 @@ app.use("/api/v1/mealType", mealTypeRouter);
 app.use("/api/v1/meal", mealRouter);
 app.use("/api/v1/userMeal", userMealRouter);
 app.use("/api/v1/bill", billRouter);
+app.use("/api/v1/menu", menuRouter);
 
 // error middleware
 app.use(errorHandler);

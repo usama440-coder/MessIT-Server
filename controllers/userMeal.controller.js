@@ -99,74 +99,139 @@ const getUserMeal = asyncHandler(async (req, res) => {
   let userMeal;
 
   // user can access meal of its own
-  if (req.user.role !== "staff") {
-    userMeal = await UserMeal.aggregate([
-      {
-        $match: {
-          meal: _id,
-          user: req.user._id,
+  // if (req.user.role !== "staff") {
+  //   userMeal = await UserMeal.aggregate([
+  //     {
+  //       $match: {
+  //         meal: _id,
+  //         user: req.user._id,
+  //       },
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: "users",
+  //         localField: "user",
+  //         foreignField: "_id",
+  //         as: "userData",
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$userData",
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 1,
+  //         user: 1,
+  //         meal: 1,
+  //         items: 1,
+  //         createdAt: 1,
+  //         updatedAt: 1,
+  //         "userData._id": 1,
+  //         "userData.name": 1,
+  //       },
+  //     },
+  //   ]);
+  // } else {
+  //   userMeal = await UserMeal.aggregate([
+  //     {
+  //       $match: {
+  //         meal: _id,
+  //       },
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: "users",
+  //         localField: "user",
+  //         foreignField: "_id",
+  //         as: "userData",
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$userData",
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 1,
+  //         user: 1,
+  //         meal: 1,
+  //         items: 1,
+  //         createdAt: 1,
+  //         updatedAt: 1,
+  //         "userData._id": 1,
+  //         "userData.name": 1,
+  //       },
+  //     },
+  //   ]);
+  // }
+
+  userMeal = await UserMeal.aggregate([
+    {
+      $match: {
+        meal: _id,
+      },
+    },
+    {
+      $unwind: {
+        path: "$items",
+      },
+    },
+    {
+      $lookup: {
+        from: "items",
+        localField: "items.itemId",
+        foreignField: "_id",
+        as: "itemData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$itemData",
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        as: "userData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$userData",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        meal: 1,
+        "item._id": "$itemData._id",
+        "item.itemQuantity": "$items.itemQuantity",
+        "item.name": "$itemData.name",
+        "item.units": "$itemData.units",
+        "user.id": "$userData._id",
+        "user.name": "$userData.name",
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        items: {
+          $push: "$item",
+        },
+        user: {
+          $first: "$user",
+        },
+        meal: {
+          $first: "$meal",
         },
       },
-      {
-        $lookup: {
-          from: "users",
-          localField: "user",
-          foreignField: "_id",
-          as: "userData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$userData",
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          user: 1,
-          meal: 1,
-          items: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          "userData._id": 1,
-          "userData.name": 1,
-        },
-      },
-    ]);
-  } else {
-    userMeal = await UserMeal.aggregate([
-      {
-        $match: {
-          meal: _id,
-        },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "user",
-          foreignField: "_id",
-          as: "userData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$userData",
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          user: 1,
-          meal: 1,
-          items: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          "userData._id": 1,
-          "userData.name": 1,
-        },
-      },
-    ]);
-  }
+    },
+  ]);
 
   res.status(200).json({ success: true, userMeal });
 });
@@ -223,10 +288,11 @@ const updateUserMeal = asyncHandler(async (req, res) => {
 
 // @desc    Get a single user meal
 // @route   GET /api/v1/userMeal/user/:id
-// @access  Staff
+// @access  Staff (all users), user (own meal)
 const getSingleUserMeal = asyncHandler(async (req, res) => {
   const _id = mongoose.Types.ObjectId(req.params.id);
-  const { user } = req.body;
+  const user = mongoose.Types.ObjectId(req.body.user);
+  let singleUserMeal;
 
   // required field user
   if (!user) {
@@ -234,11 +300,29 @@ const getSingleUserMeal = asyncHandler(async (req, res) => {
     throw new Error("Provide required fields");
   }
 
-  const singleUserMeal = await UserMeal.aggregate([
+  singleUserMeal = await UserMeal.aggregate([
     {
       $match: {
         meal: _id,
-        user: mongoose.Types.ObjectId(user),
+        user: user,
+      },
+    },
+    {
+      $unwind: {
+        path: "$items",
+      },
+    },
+    {
+      $lookup: {
+        from: "items",
+        localField: "items.itemId",
+        foreignField: "_id",
+        as: "itemData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$itemData",
       },
     },
     {
@@ -257,16 +341,118 @@ const getSingleUserMeal = asyncHandler(async (req, res) => {
     {
       $project: {
         _id: 1,
-        user: 1,
         meal: 1,
-        items: 1,
-        createdAt: 1,
-        updatedAt: 1,
-        "userData.name": 1,
-        "userData.email": 1,
+        "item.itemId": "$itemData._id",
+        "item.itemQuantity": "$items.itemQuantity",
+        "item.name": "$itemData.name",
+        "item.units": "$itemData.units",
+        "user.id": "$userData._id",
+        "user.name": "$userData.name",
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        items: {
+          $push: "$item",
+        },
+        user: {
+          $first: "$user",
+        },
+        meal: {
+          $first: "$meal",
+        },
       },
     },
   ]);
+
+  // if (req.user.role === "staff") {
+  //   singleUserMeal = await UserMeal.aggregate([
+  //     {
+  //       $match: {
+  //         meal: _id,
+  //         user: mongoose.Types.ObjectId(user),
+  //       },
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: "users",
+  //         localField: "user",
+  //         foreignField: "_id",
+  //         as: "userData",
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$userData",
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 1,
+  //         user: 1,
+  //         meal: 1,
+  //         items: 1,
+  //         createdAt: 1,
+  //         updatedAt: 1,
+  //         "userData.name": 1,
+  //         "userData.email": 1,
+  //       },
+  //     },
+  //   ]);
+  // } else {
+  //   singleUserMeal = await UserMeal.aggregate([
+  //     {
+  //       $match: {
+  //         meal: _id,
+  //         user: mongoose.Types.ObjectId(req.user._id),
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$items",
+  //       },
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: "items",
+  //         localField: "items.itemId",
+  //         foreignField: "_id",
+  //         as: "itemsData",
+  //       },
+  //     },
+  //     {
+  //       $unwind: {
+  //         path: "$itemsData",
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 1,
+  //         user: 1,
+  //         meal: 1,
+  //         "item.itemQuantity": "$items.itemQuantity",
+  //         "item.name": "$itemsData.name",
+  //         "item._id": "$items._id",
+  //         "item.units": "$itemsData.units",
+  //       },
+  //     },
+  //     {
+  //       $group: {
+  //         _id: "$_id",
+  //         items: {
+  //           $push: "$item",
+  //         },
+  //         user: {
+  //           $first: "$user",
+  //         },
+  //         meal: {
+  //           $first: "$meal",
+  //         },
+  //       },
+  //     },
+  //   ]);
+  // }
 
   if (!singleUserMeal) {
     res.status(400);

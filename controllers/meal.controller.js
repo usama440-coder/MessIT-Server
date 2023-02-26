@@ -1,9 +1,8 @@
 const Meal = require("../models/Meal.model");
-const Mess = require("../models/Mess.model");
 const Item = require("../models/Item.model");
-const User = require("../models/User.model");
 const MealType = require("../models/MealType.model");
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 const { checkRequiredFields } = require("../utils/validator");
 
 // @desc    Create a new meal
@@ -58,7 +57,7 @@ const createMeal = asyncHandler(async (req, res) => {
 // @desc    Get all meals
 // @route   GET /api/v1/meal
 // @access  User (for its mess)
-const getMeals = asyncHandler(async (req, res) => {
+const getCurrentMeals = asyncHandler(async (req, res) => {
   const date = new Date();
 
   // user can access meals of its own mess only
@@ -139,11 +138,77 @@ const getMeals = asyncHandler(async (req, res) => {
     },
   ]);
 
-  const prevMeals = await Meal.aggregate([
+  // const currentMeals = await Meal.find({
+  //   validUntil: { $gte: date },
+  //   mess: req.user.mess,
+  // });
+  // const prevMeals = await Meal.find({
+  //   validUntil: { $lt: date },
+  //   mess: req.user.mess,
+  // });
+
+  res.status(200).json({ success: true, currentMeals });
+});
+
+// @desc    Get all meals
+// @route   GET /api/v1/meal
+// @access  User (for its mess)
+const getPreviousMeals = asyncHandler(async (req, res) => {
+  const date = new Date();
+
+  // user can access meals of its own mess only
+  const previousMeals = await Meal.aggregate([
     {
       $match: {
         mess: req.user.mess,
         validUntil: { $lt: date },
+      },
+    },
+    {
+      $lookup: {
+        from: "usermeals",
+        localField: "_id",
+        foreignField: "meal",
+        as: "mealData",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        items: 1,
+        type: 1,
+        validFrom: 1,
+        validUntil: 1,
+        closingTime: 1,
+        mess: 1,
+        totalUsers: {
+          $size: "$mealData",
+        },
+      },
+    },
+    {
+      $sort: {
+        validUntil: -1,
+      },
+    },
+  ]);
+
+  res.status(200).json({ success: true, previousMeals });
+});
+
+// @desc    Get a meal
+// @route   GET /api/v1/meal/:id
+// @access  User (for its mess)
+const getMeal = asyncHandler(async (req, res) => {
+  // const _id = req.params.id;
+  const id = mongoose.Types.ObjectId(req.params.id);
+
+  // User can access meal of its own mess
+  const meal = await Meal.aggregate([
+    {
+      $match: {
+        _id: id,
+        mess: mongoose.Types.ObjectId(req.user.mess),
       },
     },
     {
@@ -182,54 +247,16 @@ const getMeals = asyncHandler(async (req, res) => {
         closingTime: {
           $first: "$closingTime",
         },
-        mess: {
-          $first: "$mess",
+        type: {
+          $first: "$type",
         },
-      },
-    },
-    {
-      $lookup: {
-        from: "usermeals",
-        localField: "_id",
-        foreignField: "meal",
-        as: "mealData",
-      },
-    },
-    {
-      $project: {
-        _id: 1,
-        items: 1,
-        type: 1,
-        validFrom: 1,
-        validUntil: 1,
-        closingTime: 1,
-        mess: 1,
-        totalUsers: {
-          $size: "$mealData",
+        createdAt: {
+          $first: "$createdAt",
         },
       },
     },
   ]);
-  // const currentMeals = await Meal.find({
-  //   validUntil: { $gte: date },
-  //   mess: req.user.mess,
-  // });
-  // const prevMeals = await Meal.find({
-  //   validUntil: { $lt: date },
-  //   mess: req.user.mess,
-  // });
-
-  res.status(200).json({ success: true, currentMeals, prevMeals });
-});
-
-// @desc    Get a meal
-// @route   GET /api/v1/meal/:id
-// @access  User (for its mess)
-const getMeal = asyncHandler(async (req, res) => {
-  const _id = req.params.id;
-
-  // User can access meal of its own mess
-  const meal = await Meal.findOne({ _id, mess: req.user.mess });
+  // const meal = await Meal.findOne({ _id, mess: req.user.mess });
 
   if (!checkRequiredFields(meal)) {
     res.status(404);
@@ -318,7 +345,8 @@ const deleteMeal = asyncHandler(async (req, res) => {
 
 module.exports = {
   createMeal,
-  getMeals,
+  getCurrentMeals,
+  getPreviousMeals,
   updateMeal,
   getMeal,
   deleteMeal,

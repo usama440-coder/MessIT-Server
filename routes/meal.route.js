@@ -2,7 +2,8 @@ const express = require("express");
 const mealRouter = express.Router();
 const {
   createMeal,
-  getMeals,
+  getCurrentMeals,
+  getPreviousMeals,
   updateMeal,
   getMeal,
   deleteMeal,
@@ -11,10 +12,16 @@ const { protect, permit } = require("../middleware/auth.middleware");
 
 mealRouter.post("/", protect, permit("staff"), createMeal);
 mealRouter.get(
-  "/",
+  "/current",
   protect,
   permit("user", "secretary", "staff", "cashier"),
-  getMeals
+  getCurrentMeals
+);
+mealRouter.get(
+  "/previous",
+  protect,
+  permit("user", "secretary", "staff", "cashier"),
+  getPreviousMeals
 );
 mealRouter.get(
   "/:id",

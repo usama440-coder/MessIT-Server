@@ -8,7 +8,6 @@ const {
   getAllUserMeals,
 } = require("../controllers/userMeal.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
-const { update } = require("../models/User.model");
 
 userMealRouter.post(
   "/:id",
