@@ -1,14 +1,17 @@
 const asyncHandler = require("express-async-handler");
 const Bill = require("../models/Bill.model");
+const Balance = require("../models/Balance.model");
 const UserMeal = require("../models/UserMeal.model");
 const { checkRequiredFields } = require("../utils/validator");
+const mongoose = require("mongoose");
 
 // @desc    Generate bill all users
 // @route   POST /api/v1/bill
-// @access  Cashier (own mess), Admin
+// @access  Cashier (own mess)
 const generateBills = asyncHandler(async (req, res) => {
-  const { from, to, unitCost, additionalCharges } = req.body;
-  let billsData;
+  const { from, to } = req.body;
+  const additionalCharges = parseInt(req.body.additionalCharges);
+  const unitCost = parseFloat(req.body.unitCost);
 
   // check required fields
   if (!checkRequiredFields(from, to, unitCost, additionalCharges)) {
@@ -16,195 +19,245 @@ const generateBills = asyncHandler(async (req, res) => {
     throw new Error("Please provide required fields");
   }
 
-  // // cahier -- own mess
-  if (req.user.role !== "cashier") {
-    billsData = await UserMeal.aggregate([
-      {
-        $lookup: {
-          from: "meals",
-          localField: "meal",
-          foreignField: "_id",
-          as: "mealData",
-        },
+  // cahier -- own mess
+  const billsData = await UserMeal.aggregate([
+    {
+      $lookup: {
+        from: "meals",
+        localField: "meal",
+        foreignField: "_id",
+        as: "mealData",
       },
-      {
-        $unwind: {
-          path: "$mealData",
-        },
+    },
+    {
+      $unwind: {
+        path: "$mealData",
       },
-      {
-        $match: {
-          "mealData.validUntil": {
-            $gte: new Date(from),
-            $lte: new Date(to),
-          },
-        },
-      },
-      {
-        $unwind: {
-          path: "$items",
-        },
-      },
-      {
-        $lookup: {
-          from: "items",
-          localField: "items.itemId",
-          foreignField: "_id",
-          as: "itemData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$itemData",
-        },
-      },
-      {
-        $project: {
-          unitsPerItem: {
-            $multiply: ["$items.itemQuantity", "$itemData.units"],
-          },
-          user: 1,
-          meal: 1,
-          _id: 0,
-        },
-      },
-      {
-        $group: {
-          _id: "$user",
-          totalUnits: {
-            $sum: "$unitsPerItem",
-          },
-          user: {
-            $first: "$user",
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          totalUnits: 1,
-          user: 1,
-          additionalCharges: {
-            $literal: additionalCharges,
-          },
-          from: {
-            $literal: from,
-          },
-          to: {
-            $literal: to,
-          },
-          unitCost: {
-            $literal: unitCost,
-          },
-          netAmount: {
-            $add: [{ $multiply: ["$totalUnits", unitCost] }, additionalCharges],
-          },
-          cashier: {
-            $literal: req.user.id,
-          },
-        },
-      },
-    ]);
-  } else {
-    billsData = await UserMeal.aggregate([
-      {
-        $lookup: {
-          from: "meals",
-          localField: "meal",
-          foreignField: "_id",
-          as: "mealData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$mealData",
-        },
-      },
-      {
-        $match: {
-          $and: [
-            {
-              "mealData.validUntil": {
-                $gte: new Date(from),
-                $lte: new Date(to),
-              },
+    },
+    {
+      $match: {
+        $and: [
+          {
+            "mealData.validUntil": {
+              $gte: new Date(from),
+              $lte: new Date(to),
             },
-            {
-              "mealData.mess": req.user.mess,
-            },
-          ],
+          },
+          {
+            "mealData.mess": req.user.mess,
+          },
+        ],
+      },
+    },
+    {
+      $unwind: {
+        path: "$items",
+      },
+    },
+    {
+      $lookup: {
+        from: "items",
+        localField: "items.itemId",
+        foreignField: "_id",
+        as: "itemData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$itemData",
+      },
+    },
+    {
+      $project: {
+        unitsPerItem: {
+          $multiply: ["$items.itemQuantity", "$itemData.units"],
+        },
+        mess: "$mealData.mess",
+        user: 1,
+        meal: 1,
+        _id: 0,
+      },
+    },
+    {
+      $group: {
+        _id: "$user",
+        totalUnits: {
+          $sum: "$unitsPerItem",
+        },
+        user: {
+          $first: "$user",
+        },
+        mess: {
+          $first: "$mess",
         },
       },
-      {
-        $unwind: {
-          path: "$items",
+    },
+    {
+      $project: {
+        _id: 0,
+        totalUnits: 1,
+        user: 1,
+        mess: 1,
+        additionalCharges: {
+          $literal: additionalCharges,
+        },
+        from: {
+          $literal: from,
+        },
+        to: {
+          $literal: to,
+        },
+        unitCost: {
+          $literal: unitCost,
+        },
+        netAmount: {
+          $add: [{ $multiply: ["$totalUnits", unitCost] }, additionalCharges],
+        },
+        cashier: {
+          $literal: req.user.id,
         },
       },
-      {
-        $lookup: {
-          from: "items",
-          localField: "items.itemId",
-          foreignField: "_id",
-          as: "itemData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$itemData",
-        },
-      },
-      {
-        $project: {
-          unitsPerItem: {
-            $multiply: ["$items.itemQuantity", "$itemData.units"],
-          },
-          user: 1,
-          meal: 1,
-          _id: 0,
-        },
-      },
-      {
-        $group: {
-          _id: "$user",
-          totalUnits: {
-            $sum: "$unitsPerItem",
-          },
-          user: {
-            $first: "$user",
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          totalUnits: 1,
-          user: 1,
-          additionalCharges: {
-            $literal: additionalCharges,
-          },
-          from: {
-            $literal: from,
-          },
-          to: {
-            $literal: to,
-          },
-          unitCost: {
-            $literal: unitCost,
-          },
-          netAmount: {
-            $add: [{ $multiply: ["$totalUnits", unitCost] }, additionalCharges],
-          },
-          cashier: {
-            $literal: req.user.id,
-          },
-        },
-      },
-    ]);
-  }
+    },
+  ]);
 
   const bills = await Bill.insertMany(billsData);
 
   res.status(200).json({ success: true, bills });
 });
 
-module.exports = { generateBills };
+// @desc    Get bills
+// @route   GET /api/v1/bill
+// @access  Cashier (all users of mess), User (own bill)
+const getBills = asyncHandler(async (req, res) => {
+  let bills;
+
+  if (req.user.role === "cashier") {
+    bills = await Bill.aggregate([
+      {
+        $match: {
+          mess: mongoose.Types.ObjectId(req.user.mess),
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userData",
+        },
+      },
+      {
+        $unwind: {
+          path: "$userData",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          from: 1,
+          to: 1,
+          totalUnits: 1,
+          unitCost: 1,
+          additionalCharges: 1,
+          netAmount: 1,
+          isPaid: 1,
+          mess: 1,
+          payment: 1,
+          "user.name": "$userData.name",
+          "user.id": "$userData._id",
+        },
+      },
+    ]);
+  } else {
+    bills = await Bill.aggregate([
+      {
+        $match: {
+          user: mongoose.Types.ObjectId(req.user._id),
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userData",
+        },
+      },
+      {
+        $unwind: {
+          path: "$userData",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          from: 1,
+          to: 1,
+          totalUnits: 1,
+          unitCost: 1,
+          additionalCharges: 1,
+          netAmount: 1,
+          isPaid: 1,
+          mess: 1,
+          payment: 1,
+          "user.name": "$userData.name",
+          "user.id": "$userData._id",
+        },
+      },
+    ]);
+  }
+
+  res.status(200).json({ success: true, bills });
+});
+
+// @desc    Update bill
+// @route   PUT /api/v1/bill/:id
+// @access  Cashier (own mess)
+const updateBill = asyncHandler(async (req, res) => {
+  const _id = req.params.id;
+  let balance;
+
+  const { payment, isPaid } = req.body;
+  if (!payment || (isPaid !== true && isPaid !== false)) {
+    res.status(400);
+    throw new Error("Provide required fields");
+  }
+
+  if (payment && isPaid === false) {
+    res.status(400);
+    throw new Error("Provide payment");
+  }
+
+  // check bill exists
+  const billExists = await Bill.findOne({ _id, mess: req.user.mess });
+  if (!billExists) {
+    res.status(400);
+    throw new Error("Bill does not exist");
+  }
+
+  // check user balance
+  balance = await Balance.findOne({ user: billExists.user });
+  if (!balance) {
+    // update bill
+    await Bill.updateOne({ _id }, { payment, isPaid });
+    balance = await Balance.create({
+      balance: payment - billExists.netAmount,
+      user: billExists.user,
+    });
+  } else {
+    // update bill
+    await Bill.updateOne({ _id }, { payment, isPaid });
+    balance = await Balance.updateOne(
+      { user: billExists.user },
+      {
+        balance: balance.balance + (payment - billExists.netAmount),
+      }
+    );
+  }
+
+  res
+    .status(200)
+    .json({ success: true, balance, message: "Bill updated successfully" });
+});
+
+module.exports = { generateBills, getBills, updateBill };

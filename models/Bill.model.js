@@ -44,6 +44,11 @@ const BillSchema = mongoose.Schema(
       ref: "User",
       required: true,
     },
+    mess: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Mess",
+      required: true,
+    },
   },
   {
     timestamps: true,
