@@ -9,17 +9,12 @@ const {
 } = require("../controllers/userMeal.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
 
-userMealRouter.post(
-  "/:id",
-  protect,
-  permit("user", "secretary", "cahier", "staff"),
-  openMeal
-);
+userMealRouter.post("/:id", protect, permit("user"), openMeal);
 
 userMealRouter.get(
   "/:id",
   protect,
-  permit("user", "secretary", "cahier", "staff"),
+  permit("user", "secretary", "cashier", "staff"),
   getUserMeal
 );
 

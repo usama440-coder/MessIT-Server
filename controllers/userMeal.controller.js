@@ -2,7 +2,6 @@ const asyncHandler = require("express-async-handler");
 const User = require("../models/User.model");
 const Meal = require("../models/Meal.model");
 const UserMeal = require("../models/UserMeal.model");
-const Item = require("../models/Item.model");
 const mongoose = require("mongoose");
 const { checkRequiredFields } = require("../utils/validator");
 

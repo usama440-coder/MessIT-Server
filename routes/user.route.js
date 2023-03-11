@@ -10,7 +10,7 @@ const {
 } = require("../controllers/user.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
 
-userRouter.post("/", registerUser);
+userRouter.post("/", protect, permit("admin"), registerUser);
 userRouter.post("/login", loginUser);
 userRouter.get(
   "/",

@@ -1,6 +1,10 @@
 const Item = require("../models/Item.model");
 const asyncHandler = require("express-async-handler");
-const { checkRequiredFields, addItemValidator } = require("../utils/validator");
+const {
+  checkRequiredFields,
+  addItemValidator,
+  checkUserRoles,
+} = require("../utils/validator");
 
 // @desc    Add an item
 // @route   POST /api/v1/items
@@ -37,65 +41,50 @@ const addItem = asyncHandler(async (req, res) => {
 
 // @desc    Get all items
 // @route   GET /api/v1/items
-// @access  Admin, User (own mess only)
+// @access  All except Admin
 const getItems = asyncHandler(async (req, res) => {
-  let items;
+  const items = await Item.aggregate([
+    {
+      $match: {
+        mess: req.user.mess,
+      },
+    },
+    {
+      $lookup: {
+        from: "messes",
+        localField: "mess",
+        foreignField: "_id",
+        as: "messData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$messData",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        units: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        "messData._id": "$messData._id",
+        "messData.name": "$messData.name",
+      },
+    },
+  ]);
 
-  // sec, cashier, staff, users can view items of their own mess only
-  if (["secretary", "cashier", "staff", "user"].includes(req.user.role)) {
-    items = await Item.aggregate([
-      {
-        $match: {
-          mess: req.user.mess,
-        },
-      },
-      {
-        $lookup: {
-          from: "messes",
-          localField: "mess",
-          foreignField: "_id",
-          as: "messData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$messData",
-        },
-      },
-    ]);
-  } else {
-    items = items = await Item.aggregate([
-      {
-        $lookup: {
-          from: "messes",
-          localField: "mess",
-          foreignField: "_id",
-          as: "messData",
-        },
-      },
-      {
-        $unwind: {
-          path: "$messData",
-        },
-      },
-    ]);
-  }
   res.status(200).json({ success: true, items });
 });
 
 // @desc    Get a single item
 // @route   GET /api/v1/items/:id
-// @access  Admin, User(own mess only)
+// @access  All except Admin
 const getItem = asyncHandler(async (req, res) => {
   const _id = req.params.id;
-  let item;
 
-  // sec, cashier, staff, users can view items of their own mess only
-  if (["secretary", "cashier", "staff", "user"].includes(req.user.role)) {
-    item = await Item.findOne({ _id, mess: req.user.mess });
-  } else {
-    item = await Item.findOne({ _id });
-  }
+  const item = await Item.findOne({ _id, mess: req.user.mess });
 
   if (!checkRequiredFields(item)) {
     res.status(400);

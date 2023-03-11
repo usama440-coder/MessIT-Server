@@ -14,21 +14,16 @@ mealRouter.post("/", protect, permit("staff"), createMeal);
 mealRouter.get(
   "/current",
   protect,
-  permit("user", "secretary", "staff", "cashier"),
+  permit("user", "secretary", "staff"),
   getCurrentMeals
 );
 mealRouter.get(
   "/previous",
   protect,
-  permit("user", "secretary", "staff", "cashier"),
+  permit("user", "secretary", "staff"),
   getPreviousMeals
 );
-mealRouter.get(
-  "/:id",
-  protect,
-  permit("user", "secretary", "staff", "cashier"),
-  getMeal
-);
+mealRouter.get("/:id", protect, permit("user", "secretary", "staff"), getMeal);
 mealRouter.put("/:id", protect, permit("staff"), updateMeal);
 mealRouter.delete("/:id", protect, permit("staff"), deleteMeal);
 

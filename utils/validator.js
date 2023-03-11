@@ -44,9 +44,20 @@ const addMealTypeValidator = (type) => {
   return true;
 };
 
+// @controller  all
+// @message     check user roles
+const checkUserRoles = (user_roles, permitted_roles) => {
+  if (user_roles.some((val) => permitted_roles.includes(val))) {
+    return true;
+  } else {
+    return false;
+  }
+};
+
 module.exports = {
   registerUserValidator,
   checkRequiredFields,
   addItemValidator,
   addMealTypeValidator,
+  checkUserRoles,
 };

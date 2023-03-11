@@ -32,7 +32,25 @@ const createMess = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/mess
 // @access  Admin
 const getMess = asyncHandler(async (req, res) => {
-  const mess = await Mess.find();
+  const mess = await Mess.aggregate([
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "mess",
+        as: "result",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        totalUsers: {
+          $size: "$result",
+        },
+      },
+    },
+  ]);
 
   res.status(200).json({ success: true, mess });
 });

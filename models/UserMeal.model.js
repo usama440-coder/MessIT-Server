@@ -12,6 +12,10 @@ const UserMealSchema = mongoose.Schema(
       ref: "Meal",
       required: true,
     },
+    isTaken: {
+      type: Boolean,
+      default: false,
+    },
     items: [
       {
         itemId: {

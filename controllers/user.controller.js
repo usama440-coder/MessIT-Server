@@ -1,11 +1,13 @@
 const User = require("../models/User.model");
 const Mess = require("../models/Mess.model");
+const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const {
   registerUserValidator,
   checkRequiredFields,
+  checkUserRoles,
 } = require("../utils/validator");
 
 // @desc    Login User
@@ -46,13 +48,19 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/users
 // @access  Admin
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, isActive, role, profile, password, mess, contact } =
-    req.body;
+  const { name, email, isActive, role, profile, mess, contact } = req.body;
 
   // required fields validation
-  if (!checkRequiredFields(name, email, password, mess, contact)) {
+  if (!checkRequiredFields(name, email, mess, contact, role)) {
     res.status(400);
     throw new Error("Provide all the fields");
+  }
+
+  // roles
+  const curr_roles = ["user", "staff", "cashier", "secretary"];
+  if (role.length === 0 || !role.every((val) => curr_roles.includes(val))) {
+    res.status(400);
+    throw new Error("Invalid role value");
   }
 
   //   validation
@@ -77,7 +85,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // hash password
   const salt = await bcrypt.genSalt(10);
-  const hashedPassword = bcrypt.hashSync(password, salt);
+  const hashedPassword = bcrypt.hashSync("123456", salt);
 
   //   register
   const user = await User.create({
@@ -99,13 +107,14 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access  Sec, Staff, Cashier --> (own mess), Admin
 const getUsers = asyncHandler(async (req, res) => {
   let users;
+  let user_roles = req.user.role;
 
   // sec, cashier, staff can view users of their own mess only
-  if (["secretary", "cashier", "staff"].includes(req.user.role)) {
+  if (checkUserRoles(user_roles, ["secretary", "staff", "cashier"])) {
     users = await User.aggregate([
       {
         $match: {
-          mess: new ObjectId(req.user.mess),
+          mess: mongoose.Types.ObjectId(req.user.mess),
         },
       },
       {
@@ -130,7 +139,8 @@ const getUsers = asyncHandler(async (req, res) => {
           role: 1,
           createdAt: 1,
           contact: 1,
-          messData: 1,
+          "messData._id": "$messData._id",
+          "messData.name": "$messData.name",
         },
       },
     ]);
@@ -158,7 +168,8 @@ const getUsers = asyncHandler(async (req, res) => {
           role: 1,
           contact: 1,
           createdAt: 1,
-          messData: 1,
+          "messData._id": "$messData._id",
+          "messData.name": "$messData.name",
         },
       },
     ]);
@@ -174,12 +185,13 @@ const getUsers = asyncHandler(async (req, res) => {
 const getUser = asyncHandler(async (req, res) => {
   const _id = req.params.id;
   let user;
+  const user_roles = req.user.role;
 
   // Sec, Cashier, Staff can read user of their own mess
   // User can view profile of its own
-  if (["secretary", "cashier", "staff"].includes(req.user.role)) {
+  if (checkUserRoles(user_roles, ["secretary", "cashier", "staff"])) {
     user = await User.findOne({ _id, mess: req.user.mess }).select("-password");
-  } else if (req.user.role === "user") {
+  } else if (checkUserRoles(user_roles, ["user"])) {
     user = await User.findOne({ _id: req.user.id }).select("-password");
   } else {
     user = await User.findOne({ _id }).select("-password");
@@ -219,17 +231,24 @@ const deleteUser = asyncHandler(async (req, res) => {
 // @access  Admin
 const updateUser = asyncHandler(async (req, res) => {
   const _id = req.params.id;
+  const role = req.body.role;
 
-  const { name, email, isActive, role, mess, profile } = req.body;
+  if (req.body.role) {
+    const curr_roles = ["user", "staff", "cashier", "secretary"];
+    if (role.length === 0 || !role.every((val) => curr_roles.includes(val))) {
+      res.status(400);
+      throw new Error("Invalid role value");
+    }
+  }
 
+  // user exists
   const user = await User.findOne({ _id });
-
   if (!checkRequiredFields(user)) {
     res.status(400);
     throw new Error("User not found");
   }
 
-  await User.updateOne({ _id }, { name, email, isActive, role, mess, profile });
+  await User.updateOne({ _id }, req.body);
 
   res.status(200).json({ success: true, message: "User updated successfully" });
 });

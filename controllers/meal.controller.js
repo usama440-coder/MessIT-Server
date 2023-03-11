@@ -4,6 +4,7 @@ const MealType = require("../models/MealType.model");
 const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const { checkRequiredFields } = require("../utils/validator");
+const UserMeal = require("../models/UserMeal.model");
 
 // @desc    Create a new meal
 // @route   POST /api/v1/meal
@@ -54,9 +55,9 @@ const createMeal = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, meal });
 });
 
-// @desc    Get all meals
-// @route   GET /api/v1/meal
-// @access  User (for its mess)
+// @desc    Get current meals
+// @route   GET /api/v1/meal/current
+// @access  Secretary, Staff, User
 const getCurrentMeals = asyncHandler(async (req, res) => {
   const date = new Date();
 
@@ -150,9 +151,9 @@ const getCurrentMeals = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, currentMeals });
 });
 
-// @desc    Get all meals
-// @route   GET /api/v1/meal
-// @access  User (for its mess)
+// @desc    Get previous meals
+// @route   GET /api/v1/meal/previous
+// @access  Secretary, Staff, User
 const getPreviousMeals = asyncHandler(async (req, res) => {
   const date = new Date();
 
@@ -198,7 +199,7 @@ const getPreviousMeals = asyncHandler(async (req, res) => {
 
 // @desc    Get a meal
 // @route   GET /api/v1/meal/:id
-// @access  User (for its mess)
+// @access  Secretary, Staff, User
 const getMeal = asyncHandler(async (req, res) => {
   // const _id = req.params.id;
   const id = mongoose.Types.ObjectId(req.params.id);
@@ -268,7 +269,7 @@ const getMeal = asyncHandler(async (req, res) => {
 
 // @desc    Update a meal
 // @route   PUT /api/v1/meal/:id
-// @access  Staff (own mess only)
+// @access  Staff
 const updateMeal = asyncHandler(async (req, res) => {
   const _id = req.params.id;
   const { type, validFrom, validUntil, closingTime, items } = req.body;
@@ -338,7 +339,9 @@ const deleteMeal = asyncHandler(async (req, res) => {
     throw new Error("Meal not found");
   }
 
+  // delete meal will cause usermeal as well
   await Meal.deleteOne({ _id });
+  await UserMeal.deleteOne({ meal: _id });
 
   res.status(200).json({ success: true, message: "Meal deleted successfully" });
 });

@@ -30,12 +30,8 @@ const UserSchema = mongoose.Schema(
       default: true,
     },
     role: {
-      type: String,
+      type: Array,
       default: "user",
-      enum: {
-        values: ["admin", "user", "secretary", "cashier", "staff"],
-        message: "Value is not supported",
-      },
     },
     profile: {
       type: String,
