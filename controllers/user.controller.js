@@ -37,7 +37,9 @@ const loginUser = asyncHandler(async (req, res) => {
       }
     );
 
-    res.status(200).json({ success: true, user, token });
+    const mess = await Mess.findOne({ _id: user.mess }).select("name");
+
+    res.status(200).json({ success: true, user, mess, token });
   } else {
     res.status(400);
     throw new Error("Invalid email or password");
@@ -107,14 +109,18 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access  Sec, Staff, Cashier --> (own mess), Admin
 const getUsers = asyncHandler(async (req, res) => {
   let users;
-  let user_roles = req.user.role;
 
-  // sec, cashier, staff can view users of their own mess only
-  if (checkUserRoles(user_roles, ["secretary", "staff", "cashier"])) {
+  // pagination
+  const page = parseInt(req.query.page || "0");
+  const pageSize = parseInt(req.query.pageSize || "50");
+  const total = await User.countDocuments({});
+  const mess = req.query.mess || "";
+
+  if (mess !== "") {
     users = await User.aggregate([
       {
         $match: {
-          mess: mongoose.Types.ObjectId(req.user.mess),
+          mess: mongoose.Types.ObjectId(mess),
         },
       },
       {
@@ -137,11 +143,17 @@ const getUsers = asyncHandler(async (req, res) => {
           email: 1,
           isActive: 1,
           role: 1,
-          createdAt: 1,
           contact: 1,
+          createdAt: 1,
           "messData._id": "$messData._id",
           "messData.name": "$messData.name",
         },
+      },
+      {
+        $skip: pageSize * page,
+      },
+      {
+        $limit: pageSize,
       },
     ]);
   } else {
@@ -172,10 +184,18 @@ const getUsers = asyncHandler(async (req, res) => {
           "messData.name": "$messData.name",
         },
       },
+      {
+        $skip: pageSize * page,
+      },
+      {
+        $limit: pageSize,
+      },
     ]);
   }
 
-  res.status(200).json({ success: true, users });
+  res
+    .status(200)
+    .json({ success: true, users, totalPages: Math.ceil(total / pageSize) });
 });
 
 // @desc    Get a user
@@ -202,9 +222,14 @@ const getUser = asyncHandler(async (req, res) => {
     throw new Error("No User Found");
   }
 
+  const mess = await Mess.findOne({ _id: user.mess }).select("name");
+
   res.status(200).json({
     success: true,
-    user,
+    data: {
+      user,
+      mess,
+    },
   });
 });
 

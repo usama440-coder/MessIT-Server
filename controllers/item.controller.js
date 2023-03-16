@@ -1,10 +1,6 @@
 const Item = require("../models/Item.model");
 const asyncHandler = require("express-async-handler");
-const {
-  checkRequiredFields,
-  addItemValidator,
-  checkUserRoles,
-} = require("../utils/validator");
+const { checkRequiredFields, addItemValidator } = require("../utils/validator");
 
 // @desc    Add an item
 // @route   POST /api/v1/items

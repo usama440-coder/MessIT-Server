@@ -9,7 +9,7 @@ const getBalance = asyncHandler(async (req, res) => {
   let balance;
 
   // get balance
-  if (req.user.role === "cashier") {
+  if (req.user.role.includes("cashier")) {
     balance = await Balance.findOne({ user: _id });
   } else {
     balance = await Balance.findOne({ user: req.user.id });

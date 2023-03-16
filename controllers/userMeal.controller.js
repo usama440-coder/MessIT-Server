@@ -465,6 +465,11 @@ const getSingleUserMeal = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/userMeal
 // @access  User (own meals only)
 const getAllUserMeals = asyncHandler(async (req, res) => {
+  // pagination
+  const page = parseInt(req.query.page || "0");
+  const pageSize = parseInt(req.query.pageSize || "50");
+  const total = await UserMeal.find({ user: req.user._id }).count();
+
   const userMeals = await UserMeal.aggregate([
     {
       $match: {
@@ -493,9 +498,19 @@ const getAllUserMeals = asyncHandler(async (req, res) => {
         mealData: 1,
       },
     },
+    {
+      $skip: pageSize * page,
+    },
+    {
+      $limit: pageSize,
+    },
   ]);
 
-  res.status(200).json({ success: true, userMeals });
+  res.status(200).json({
+    success: true,
+    userMeals,
+    totalPages: Math.ceil(total / pageSize),
+  });
 });
 
 module.exports = {

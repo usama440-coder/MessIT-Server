@@ -1,6 +1,8 @@
 const asyncHandler = require("express-async-handler");
 const Bill = require("../models/Bill.model");
 const Balance = require("../models/Balance.model");
+const User = require("../models/User.model");
+const Mess = require("../models/Mess.model");
 const UserMeal = require("../models/UserMeal.model");
 const { checkRequiredFields } = require("../utils/validator");
 const mongoose = require("mongoose");
@@ -131,7 +133,7 @@ const generateBills = asyncHandler(async (req, res) => {
 const getBills = asyncHandler(async (req, res) => {
   let bills;
 
-  if (req.user.role === "cashier") {
+  if (req.user.role.includes("cashier")) {
     bills = await Bill.aggregate([
       {
         $match: {
@@ -210,6 +212,32 @@ const getBills = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, bills });
 });
 
+// @desc    Get a single bill
+// @route   GET /api/v1/bill/:id
+// @access  Cashier
+const getBill = asyncHandler(async (req, res) => {
+  const _id = req.params.id;
+
+  // find bill
+  const bill = await Bill.findOne({ _id, mess: req.user.mess });
+  if (!bill) {
+    res.status(404);
+    throw new Error("Bill not found");
+  }
+
+  // find cashier, user and mess data
+  const cashier = await User.findOne({ _id: bill.cashier }).select("name");
+  const user = await User.findOne({ _id: bill.user }).select("name");
+  const mess = await Mess.findOne({ _id: bill.mess }).select("name");
+
+  if (!cashier || !user || !mess) {
+    res.status(404);
+    throw new Error("Cannot find data");
+  }
+
+  res.status(200).json({ bill, cashier, user, mess });
+});
+
 // @desc    Update bill
 // @route   PUT /api/v1/bill/:id
 // @access  Cashier (own mess)
@@ -260,4 +288,4 @@ const updateBill = asyncHandler(async (req, res) => {
     .json({ success: true, balance, message: "Bill updated successfully" });
 });
 
-module.exports = { generateBills, getBills, updateBill };
+module.exports = { generateBills, getBills, updateBill, getBill };

@@ -139,15 +139,6 @@ const getCurrentMeals = asyncHandler(async (req, res) => {
     },
   ]);
 
-  // const currentMeals = await Meal.find({
-  //   validUntil: { $gte: date },
-  //   mess: req.user.mess,
-  // });
-  // const prevMeals = await Meal.find({
-  //   validUntil: { $lt: date },
-  //   mess: req.user.mess,
-  // });
-
   res.status(200).json({ success: true, currentMeals });
 });
 
@@ -156,6 +147,11 @@ const getCurrentMeals = asyncHandler(async (req, res) => {
 // @access  Secretary, Staff, User
 const getPreviousMeals = asyncHandler(async (req, res) => {
   const date = new Date();
+
+  // pagination
+  const page = parseInt(req.query.page || "0");
+  const pageSize = parseInt(req.query.pageSize || "50");
+  const total = await UserMeal.find({ user: req.user._id }).count();
 
   // user can access meals of its own mess only
   const previousMeals = await Meal.aggregate([
@@ -192,9 +188,19 @@ const getPreviousMeals = asyncHandler(async (req, res) => {
         validUntil: -1,
       },
     },
+    {
+      $skip: pageSize * page,
+    },
+    {
+      $limit: pageSize,
+    },
   ]);
 
-  res.status(200).json({ success: true, previousMeals });
+  res.status(200).json({
+    success: true,
+    previousMeals,
+    totalPages: Math.ceil(total / pageSize),
+  });
 });
 
 // @desc    Get a meal
