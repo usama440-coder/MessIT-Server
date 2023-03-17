@@ -20,6 +20,12 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 400;
   }
 
+  // jwt expiration message
+  if (err.message === "jwt expired") {
+    message = "Link expired";
+    statusCode = 401;
+  }
+
   if (process.env.environment === "DEV") {
     console.log(err);
   }

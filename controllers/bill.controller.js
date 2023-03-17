@@ -133,44 +133,106 @@ const generateBills = asyncHandler(async (req, res) => {
 const getBills = asyncHandler(async (req, res) => {
   let bills;
 
+  // pagination
+  let total;
+  const page = parseInt(req.query.page || "0");
+  const pageSize = parseInt(req.query.pageSize || "50");
+  let paid = req.query.paid || "";
+
   if (req.user.role.includes("cashier")) {
-    bills = await Bill.aggregate([
-      {
-        $match: {
-          mess: mongoose.Types.ObjectId(req.user.mess),
+    total = await Bill.find({ mess: req.user.mess }).count();
+
+    if (paid !== "") {
+      paid = paid === "true";
+      bills = await Bill.aggregate([
+        {
+          $match: {
+            mess: mongoose.Types.ObjectId(req.user.mess),
+            isPaid: paid,
+          },
         },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "user",
-          foreignField: "_id",
-          as: "userData",
+        {
+          $lookup: {
+            from: "users",
+            localField: "user",
+            foreignField: "_id",
+            as: "userData",
+          },
         },
-      },
-      {
-        $unwind: {
-          path: "$userData",
+        {
+          $unwind: {
+            path: "$userData",
+          },
         },
-      },
-      {
-        $project: {
-          _id: 1,
-          from: 1,
-          to: 1,
-          totalUnits: 1,
-          unitCost: 1,
-          additionalCharges: 1,
-          netAmount: 1,
-          isPaid: 1,
-          mess: 1,
-          payment: 1,
-          "user.name": "$userData.name",
-          "user.id": "$userData._id",
+        {
+          $project: {
+            _id: 1,
+            from: 1,
+            to: 1,
+            totalUnits: 1,
+            unitCost: 1,
+            additionalCharges: 1,
+            netAmount: 1,
+            isPaid: 1,
+            mess: 1,
+            payment: 1,
+            "user.name": "$userData.name",
+            "user.id": "$userData._id",
+          },
         },
-      },
-    ]);
+        {
+          $skip: pageSize * page,
+        },
+        {
+          $limit: pageSize,
+        },
+      ]);
+    } else {
+      bills = await Bill.aggregate([
+        {
+          $match: {
+            mess: mongoose.Types.ObjectId(req.user.mess),
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "user",
+            foreignField: "_id",
+            as: "userData",
+          },
+        },
+        {
+          $unwind: {
+            path: "$userData",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            from: 1,
+            to: 1,
+            totalUnits: 1,
+            unitCost: 1,
+            additionalCharges: 1,
+            netAmount: 1,
+            isPaid: 1,
+            mess: 1,
+            payment: 1,
+            "user.name": "$userData.name",
+            "user.id": "$userData._id",
+          },
+        },
+        {
+          $skip: pageSize * page,
+        },
+        {
+          $limit: pageSize,
+        },
+      ]);
+    }
   } else {
+    total = await Bill.find({ user: req.user._id }).count();
     bills = await Bill.aggregate([
       {
         $match: {
@@ -206,10 +268,18 @@ const getBills = asyncHandler(async (req, res) => {
           "user.id": "$userData._id",
         },
       },
+      {
+        $skip: pageSize * page,
+      },
+      {
+        $limit: pageSize,
+      },
     ]);
   }
 
-  res.status(200).json({ success: true, bills });
+  res
+    .status(200)
+    .json({ success: true, bills, totalPages: Math.ceil(total / pageSize) });
 });
 
 // @desc    Get a single bill

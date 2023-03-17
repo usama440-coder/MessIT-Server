@@ -7,6 +7,8 @@ const {
   deleteUser,
   updateUser,
   loginUser,
+  resetPasswordRequest,
+  resetPassword,
 } = require("../controllers/user.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
 
@@ -21,5 +23,7 @@ userRouter.get(
 userRouter.get("/:id", protect, getUser);
 userRouter.delete("/:id", protect, permit("admin"), deleteUser);
 userRouter.put("/:id", protect, permit("admin"), updateUser);
+userRouter.post("/reset-password-link", resetPasswordRequest);
+userRouter.post("/reset-password", resetPassword);
 
 module.exports = userRouter;

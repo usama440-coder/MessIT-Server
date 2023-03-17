@@ -3,6 +3,7 @@ const Mess = require("../models/Mess.model");
 const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const bcrypt = require("bcrypt");
 const {
   registerUserValidator,
@@ -278,6 +279,124 @@ const updateUser = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: "User updated successfully" });
 });
 
+// @desc    Request a password reset link
+// @route   POST /api/v1/users/reset-password
+// @access  *
+const resetPasswordRequest = asyncHandler(async (req, res) => {
+  const email = req.body.email;
+
+  // email is given
+  if (!email) {
+    res.status(400);
+    throw new Error("Provide your email address");
+  }
+
+  // user Exists
+  const user = await User.findOne({ email });
+  if (!user) {
+    res.status(400);
+    throw new Error("User not found");
+  }
+
+  // create a token
+  const token = jwt.sign(
+    {
+      id: user._id.toString(),
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "15m",
+    }
+  );
+
+  // create a password reset link
+  const link = `${process.env.CLIENT_URL}/reset-password/?user=${user._id}&token=${token}`;
+
+  // mail service
+  let config = {
+    service: "gmail",
+    auth: {
+      user: process.env.MAIL_URL,
+      pass: process.env.MAIL_PASS,
+    },
+  };
+
+  let transporter = nodemailer.createTransport(config);
+
+  let composedMessage = `<h3>MessIT</h3> <p><b>Hey ${user.name}!</b><br> You requested to change your password. Copy the link below </p> <br> <a href=${link}>${link}</a> <p><i style="color: red"><b>This link is valid for 15 minutes only</b></i></p>`;
+
+  let message = {
+    from: process.env.MAIL_URL,
+    to: user.email,
+    subject: "MessIT Reset Password",
+    text: "password reset",
+    html: composedMessage,
+  };
+
+  transporter.sendMail(message, (err, result) => {
+    if (err) {
+      res.status(200).json({ success: true, message: err.message });
+    } else {
+      res.status(200).json({
+        success: true,
+        message: "Link has been sent to your email",
+        link,
+      });
+    }
+  });
+});
+
+// @desc    Reset a password
+// @route   POST /api/v1/users/reset-password
+// @access  *
+const resetPassword = asyncHandler(async (req, res) => {
+  // get user id, password, token
+  const { id, password, token } = req.body;
+
+  // check if fields given
+  if (!id || !password || !token) {
+    res.status(400);
+    throw new Error("Please provide required fields");
+  }
+
+  // check if user exists for the given id
+  const user = await User.findOne({ _id: id });
+  if (!user) {
+    res.status(400);
+    throw new Error("User not found");
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+  // token belongs to a user
+  if (user._id.toString() !== decoded.id.toString()) {
+    res.status(400);
+    throw new Error("Token does not belong to a user");
+  }
+
+  // check password strength
+  if (password.length < 6) {
+    res.status(400);
+    throw new Error("Required password length is 6 to 20 characters");
+  }
+
+  // hash password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = bcrypt.hashSync(password, salt);
+
+  const result = await User.updateOne(
+    { _id: user._id },
+    { password: hashedPassword }
+  );
+
+  if (result.modifiedCount !== 1) {
+    res.status(400);
+    throw new Error("Password cannot be changed");
+  }
+
+  res.status(200).json({ success: true, message: "Password has been changed" });
+});
+
 module.exports = {
   registerUser,
   getUsers,
@@ -285,4 +404,6 @@ module.exports = {
   deleteUser,
   updateUser,
   loginUser,
+  resetPasswordRequest,
+  resetPassword,
 };
