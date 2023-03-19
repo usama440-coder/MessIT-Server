@@ -11,8 +11,9 @@ const {
   resetPassword,
 } = require("../controllers/user.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
+const singleUpload = require("../middleware/multer.middleware");
 
-userRouter.post("/", protect, permit("admin"), registerUser);
+userRouter.post("/", protect, permit("admin"), singleUpload, registerUser);
 userRouter.post("/login", loginUser);
 userRouter.get(
   "/",
@@ -22,7 +23,7 @@ userRouter.get(
 );
 userRouter.get("/:id", protect, getUser);
 userRouter.delete("/:id", protect, permit("admin"), deleteUser);
-userRouter.put("/:id", protect, permit("admin"), updateUser);
+userRouter.put("/:id", protect, permit("admin"), singleUpload, updateUser);
 userRouter.post("/reset-password-link", resetPasswordRequest);
 userRouter.post("/reset-password", resetPassword);
 

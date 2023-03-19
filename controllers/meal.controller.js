@@ -32,15 +32,24 @@ const createMeal = asyncHandler(async (req, res) => {
   }
 
   // items exists
+  let itemsData = [];
   for (const item of items) {
     let itemExists = await Item.findOne({
       _id: item.itemId,
       mess: req.user.mess,
-    });
+    }).select("_id name units");
+
     if (!checkRequiredFields(itemExists)) {
       res.status(404);
       throw new Error("Item not found");
     }
+
+    // push current item to array
+    itemsData.push({
+      itemId: itemExists._id,
+      name: itemExists.name,
+      units: itemExists.units,
+    });
   }
 
   const meal = await Meal.create({
@@ -49,7 +58,7 @@ const createMeal = asyncHandler(async (req, res) => {
     validUntil,
     closingTime,
     mess: req.user.mess,
-    items,
+    items: itemsData,
   });
 
   res.status(200).json({ success: true, meal });

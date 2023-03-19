@@ -10,6 +10,8 @@ const {
   checkRequiredFields,
   checkUserRoles,
 } = require("../utils/validator");
+const getDataUri = require("../utils/dataUri");
+const cloudinary = require("cloudinary");
 
 // @desc    Login User
 // @route   POST /api/v1/users/login
@@ -90,6 +92,22 @@ const registerUser = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = bcrypt.hashSync("123456", salt);
 
+  // upload to cloudinary
+  let cloud;
+  let profile_data;
+  if (req.file !== undefined) {
+    const file = req.file;
+    const fileUri = getDataUri(file);
+    cloud = await cloudinary.v2.uploader.upload(fileUri.content, {
+      folder: "MessIT_Users",
+      overwrite: true,
+    });
+    profile_data = {
+      public_id: cloud.public_id,
+      url: cloud.secure_url,
+    };
+  }
+
   //   register
   const user = await User.create({
     name,
@@ -97,7 +115,7 @@ const registerUser = asyncHandler(async (req, res) => {
     password: hashedPassword,
     isActive,
     role,
-    profile,
+    profile: profile_data || {},
     mess,
     contact,
   });
@@ -242,6 +260,12 @@ const deleteUser = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ _id });
 
+  // delete cloudinary image
+  if (user.profile.public_id) {
+    const imgId = user.profile.public_id;
+    await cloudinary.uploader.destroy(imgId);
+  }
+
   if (!checkRequiredFields(user)) {
     res.status(400);
     throw new Error("User not found");
@@ -274,7 +298,29 @@ const updateUser = asyncHandler(async (req, res) => {
     throw new Error("User not found");
   }
 
-  await User.updateOne({ _id }, req.body);
+  // upload to cloudinary
+  let cloud;
+  let profile_data;
+  if (req.file !== undefined) {
+    const file = req.file;
+    const fileUri = getDataUri(file);
+    cloud = await cloudinary.v2.uploader.upload(fileUri.content, {
+      folder: "MessIT_Users",
+      overwrite: true,
+    });
+    profile_data = {
+      public_id: cloud.public_id,
+      url: cloud.secure_url,
+    };
+  }
+
+  // delete previous cloudinary image
+  if (user.profile.public_id) {
+    const imgId = user.profile.public_id;
+    await cloudinary.uploader.destroy(imgId);
+  }
+
+  await User.updateOne({ _id }, { ...req.body, profile: profile_data });
 
   res.status(200).json({ success: true, message: "User updated successfully" });
 });

@@ -30,6 +30,14 @@ const MealSchema = mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           required: true,
         },
+        name: {
+          type: String,
+          required: true,
+        },
+        units: {
+          type: String,
+          required: true,
+        },
       },
     ],
   },

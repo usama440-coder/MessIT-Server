@@ -13,11 +13,20 @@ const billRouter = require("./routes/bill.route");
 const menuRouter = require("./routes/menu.route");
 const balanceRouter = require("./routes/balance.route");
 const statsRouter = require("./routes/stats.route");
+const bodyParser = require("body-parser");
+const cloudinary = require("cloudinary");
 require("dotenv").config();
 
 // middleware
-app.use(express.json());
 app.use(cors());
+app.use(bodyParser.urlencoded({ extended: true, limit: "100mb" }));
+app.use(bodyParser.json({ limit: "100mb" }));
+
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // routes
 app.use("/api/v1/users", userRouter);
