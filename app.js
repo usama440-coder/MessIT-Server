@@ -29,6 +29,9 @@ cloudinary.v2.config({
 });
 
 // routes
+app.use("/check", (req, res) => {
+  res.status(200).json({ success: true, message: "yes!!" });
+});
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/mess", messRouter);
 app.use("/api/v1/items", itemRouter);
