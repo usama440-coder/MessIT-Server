@@ -29,6 +29,9 @@ cloudinary.v2.config({
 });
 
 // routes
+app.get("/", (req, res) =>
+  res.status(404).json({ success: false, message: "HELLO FROM SERVER" })
+);
 app.get("/check", (req, res) => {
   res.status(200).json({ success: true, message: "yes!!" });
 });
@@ -42,9 +45,6 @@ app.use("/api/v1/bill", billRouter);
 app.use("/api/v1/menu", menuRouter);
 app.use("/api/v1/balance", balanceRouter);
 app.use("/api/v1/stats", statsRouter);
-app.get("/", (req, res) =>
-  res.status(404).json({ success: false, message: "HELLO FROM SERVER" })
-);
 app.get("*", (req, res) =>
   res.status(404).json({ success: false, message: "404 PAGE NOT FOUND" })
 );
