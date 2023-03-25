@@ -71,52 +71,12 @@ const getCurrentMeals = asyncHandler(async (req, res) => {
   const date = new Date();
 
   // user can access meals of its own mess only
+
   const currentMeals = await Meal.aggregate([
     {
       $match: {
         mess: req.user.mess,
         validUntil: { $gte: date },
-      },
-    },
-    {
-      $unwind: {
-        path: "$items",
-      },
-    },
-    {
-      $lookup: {
-        from: "items",
-        localField: "items.itemId",
-        foreignField: "_id",
-        as: "itemsData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$itemsData",
-      },
-    },
-    {
-      $group: {
-        _id: "$_id",
-        items: {
-          $push: "$itemsData",
-        },
-        type: {
-          $first: "$type",
-        },
-        validFrom: {
-          $first: "$validFrom",
-        },
-        validUntil: {
-          $first: "$validUntil",
-        },
-        closingTime: {
-          $first: "$closingTime",
-        },
-        mess: {
-          $first: "$mess",
-        },
       },
     },
     {
@@ -216,63 +176,9 @@ const getPreviousMeals = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/meal/:id
 // @access  Secretary, Staff, User
 const getMeal = asyncHandler(async (req, res) => {
-  // const _id = req.params.id;
-  const id = mongoose.Types.ObjectId(req.params.id);
+  const _id = req.params.id;
 
-  // User can access meal of its own mess
-  const meal = await Meal.aggregate([
-    {
-      $match: {
-        _id: id,
-        mess: mongoose.Types.ObjectId(req.user.mess),
-      },
-    },
-    {
-      $unwind: {
-        path: "$items",
-      },
-    },
-    {
-      $lookup: {
-        from: "items",
-        localField: "items.itemId",
-        foreignField: "_id",
-        as: "itemsData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$itemsData",
-      },
-    },
-    {
-      $group: {
-        _id: "$_id",
-        items: {
-          $push: "$itemsData",
-        },
-        type: {
-          $first: "$type",
-        },
-        validFrom: {
-          $first: "$validFrom",
-        },
-        validUntil: {
-          $first: "$validUntil",
-        },
-        closingTime: {
-          $first: "$closingTime",
-        },
-        type: {
-          $first: "$type",
-        },
-        createdAt: {
-          $first: "$createdAt",
-        },
-      },
-    },
-  ]);
-  // const meal = await Meal.findOne({ _id, mess: req.user.mess });
+  const meal = await Meal.findOne({ _id, mess: req.user.mess });
 
   if (!checkRequiredFields(meal)) {
     res.status(404);
@@ -314,6 +220,8 @@ const updateMeal = asyncHandler(async (req, res) => {
   // staff -- only add items of its mess
   if (items) {
     let itemExists;
+    let itemsData = [];
+
     // items array must contain one element
     if (items.length == 0) {
       res.status(400);
@@ -325,18 +233,27 @@ const updateMeal = asyncHandler(async (req, res) => {
       itemExists = await Item.findOne({
         _id: item.itemId,
         mess: mealExists.mess,
-      });
+      }).select("_id name units");
+
       if (!checkRequiredFields(itemExists)) {
         res.status(404);
         throw new Error("Item not found");
       }
-    }
-  }
 
-  await Meal.updateOne(
-    { _id },
-    { type, validFrom, validUntil, closingTime, items }
-  );
+      itemsData.push({
+        itemId: itemExists._id,
+        name: itemExists.name,
+        units: itemExists.units,
+      });
+    }
+
+    await Meal.updateOne(
+      { _id },
+      { type, validFrom, validUntil, closingTime, items: itemsData }
+    );
+  } else {
+    await Meal.updateOne({ _id }, req.body);
+  }
 
   res.status(200).json({ success: true, message: "Meal updated successfully" });
 });

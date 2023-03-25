@@ -21,32 +21,18 @@ const generateBills = asyncHandler(async (req, res) => {
     throw new Error("Please provide required fields");
   }
 
-  // cahier -- own mess
   const billsData = await UserMeal.aggregate([
-    {
-      $lookup: {
-        from: "meals",
-        localField: "meal",
-        foreignField: "_id",
-        as: "mealData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$mealData",
-      },
-    },
     {
       $match: {
         $and: [
           {
-            "mealData.validUntil": {
+            createdAt: {
               $gte: new Date(from),
               $lte: new Date(to),
             },
           },
           {
-            "mealData.mess": req.user.mess,
+            mess: req.user.mess,
           },
         ],
       },
@@ -57,26 +43,13 @@ const generateBills = asyncHandler(async (req, res) => {
       },
     },
     {
-      $lookup: {
-        from: "items",
-        localField: "items.itemId",
-        foreignField: "_id",
-        as: "itemData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$itemData",
-      },
-    },
-    {
       $project: {
         unitsPerItem: {
-          $multiply: ["$items.itemQuantity", "$itemData.units"],
+          $multiply: ["$items.units", "$items.itemQuantity"],
         },
-        mess: "$mealData.mess",
         user: 1,
         meal: 1,
+        mess: 1,
         _id: 0,
       },
     },
@@ -104,16 +77,21 @@ const generateBills = asyncHandler(async (req, res) => {
           $literal: additionalCharges,
         },
         from: {
-          $literal: from,
+          $literal: new Date(from),
         },
         to: {
-          $literal: to,
+          $literal: new Date(to),
         },
         unitCost: {
           $literal: unitCost,
         },
         netAmount: {
-          $add: [{ $multiply: ["$totalUnits", unitCost] }, additionalCharges],
+          $add: [
+            {
+              $multiply: ["$totalUnits", unitCost],
+            },
+            additionalCharges,
+          ],
         },
         cashier: {
           $literal: req.user.id,

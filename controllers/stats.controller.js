@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const UserMeal = require("../models/UserMeal.model");
 const Balance = require("../models/Balance.model");
 const Bill = require("../models/Bill.model");
+const User = require("../models/User.model");
 const mongoose = require("mongoose");
 
 // @desc    Get stats of user
@@ -15,32 +16,13 @@ const getUserStats = asyncHandler(async (req, res) => {
 
   const totalUnits = await UserMeal.aggregate([
     {
-      $lookup: {
-        from: "meals",
-        localField: "meal",
-        foreignField: "_id",
-        as: "mealData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$mealData",
-      },
-    },
-    {
       $match: {
-        user: req.user._id,
-        $and: [
-          {
-            "mealData.createdAt": {
-              $gte: new Date(from),
-              $lte: new Date(to),
-            },
-          },
-          {
-            "mealData.mess": req.user.mess,
-          },
-        ],
+        user: mongoose.Types.ObjectId(req.user._id),
+        mess: mongoose.Types.ObjectId(req.user.mess),
+        createdAt: {
+          $gte: new Date(from),
+          $lte: new Date(to),
+        },
       },
     },
     {
@@ -49,25 +31,12 @@ const getUserStats = asyncHandler(async (req, res) => {
       },
     },
     {
-      $lookup: {
-        from: "items",
-        localField: "items.itemId",
-        foreignField: "_id",
-        as: "itemData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$itemData",
-      },
-    },
-    {
       $project: {
         unitsPerItem: {
-          $multiply: ["$items.itemQuantity", "$itemData.units"],
+          $multiply: ["$items.itemQuantity", "$items.units"],
         },
-        user: 1,
         _id: 0,
+        user: 1,
       },
     },
     {
@@ -75,22 +44,6 @@ const getUserStats = asyncHandler(async (req, res) => {
         _id: "$user",
         totalUnits: {
           $sum: "$unitsPerItem",
-        },
-        user: {
-          $first: "$user",
-        },
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        totalUnits: 1,
-        user: 1,
-        from: {
-          $literal: from,
-        },
-        to: {
-          $literal: to,
         },
       },
     },
@@ -163,31 +116,12 @@ const getSecretaryStats = asyncHandler(async (req, res) => {
 
   const totalUnits = await UserMeal.aggregate([
     {
-      $lookup: {
-        from: "meals",
-        localField: "meal",
-        foreignField: "_id",
-        as: "mealData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$mealData",
-      },
-    },
-    {
       $match: {
-        $and: [
-          {
-            "mealData.createdAt": {
-              $gte: new Date(from),
-              $lte: new Date(to),
-            },
-          },
-          {
-            "mealData.mess": req.user.mess,
-          },
-        ],
+        mess: mongoose.Types.ObjectId(req.user.mess),
+        createdAt: {
+          $gte: new Date(from),
+          $lte: new Date(to),
+        },
       },
     },
     {
@@ -196,26 +130,12 @@ const getSecretaryStats = asyncHandler(async (req, res) => {
       },
     },
     {
-      $lookup: {
-        from: "items",
-        localField: "items.itemId",
-        foreignField: "_id",
-        as: "itemData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$itemData",
-      },
-    },
-    {
       $project: {
         unitsPerItem: {
-          $multiply: ["$items.itemQuantity", "$itemData.units"],
+          $multiply: ["$items.itemQuantity", "$items.units"],
         },
-        user: 1,
         _id: 0,
-        mess: "$mealData.mess",
+        mess: 1,
       },
     },
     {
@@ -229,37 +149,10 @@ const getSecretaryStats = asyncHandler(async (req, res) => {
   ]);
 
   //   count number of meals this month
-  const totalMeals = await UserMeal.aggregate([
-    {
-      $lookup: {
-        from: "meals",
-        localField: "meal",
-        foreignField: "_id",
-        as: "mealData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$mealData",
-      },
-    },
-    {
-      $match: {
-        "mealData.mess": mongoose.Types.ObjectId(req.user.mess),
-        "mealData.createdAt": {
-          $gte: new Date(from),
-        },
-      },
-    },
-    {
-      $group: {
-        _id: "$mealData.mess",
-        count: {
-          $sum: 1,
-        },
-      },
-    },
-  ]);
+  const totalMeals = await UserMeal.find({
+    mess: req.user.mess,
+    createdAt: { $gte: new Date(from) },
+  }).count();
 
   //  user meal type this month
   const mealTypes = await UserMeal.aggregate([
@@ -429,4 +322,61 @@ const getCashierStats = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getUserStats, getSecretaryStats, getCashierStats };
+// @desc    Get stats of Admin
+// @route   GET /api/v1/stats/admin
+// @access  Admin
+const getAdminStats = asyncHandler(async (req, res) => {
+  // get total users
+  const totalUsers = await User.find({}).count();
+
+  // get active and inactive users
+  const activeUsers = await User.find({ isActive: true }).count();
+  const inactiveUsers = await User.find({ isActive: false }).count();
+
+  // get users by thier mess
+  const usersMessData = await User.aggregate([
+    {
+      $group: {
+        _id: "$mess",
+        totalUsers: {
+          $sum: 1,
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "messes",
+        localField: "_id",
+        foreignField: "_id",
+        as: "messData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$messData",
+      },
+    },
+    {
+      $project: {
+        mess: "$messData.name",
+        totalUsers: 1,
+        _id: 0,
+      },
+    },
+  ]);
+
+  res.status(200).json({
+    success: true,
+    totalUsers,
+    activeUsers,
+    inactiveUsers,
+    usersMessData,
+  });
+});
+
+module.exports = {
+  getUserStats,
+  getSecretaryStats,
+  getCashierStats,
+  getAdminStats,
+};

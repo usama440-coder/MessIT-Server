@@ -5,6 +5,7 @@ const {
   getUserStats,
   getSecretaryStats,
   getCashierStats,
+  getAdminStats,
 } = require("../controllers/stats.controller");
 
 statsRouter.get("/user", protect, permit("user"), getUserStats);
@@ -15,5 +16,6 @@ statsRouter.get(
   getSecretaryStats
 );
 statsRouter.get("/cashier", protect, permit("cashier"), getCashierStats);
+statsRouter.get("/admin", protect, permit("admin"), getAdminStats);
 
 module.exports = statsRouter;

@@ -23,12 +23,25 @@ const UserMealSchema = mongoose.Schema(
           required: true,
           ref: "Item",
         },
+        name: {
+          type: String,
+          required: true,
+        },
+        units: {
+          type: Number,
+          required: true,
+        },
         itemQuantity: {
           type: Number,
           required: true,
         },
       },
     ],
+    mess: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Mess",
+      required: true,
+    },
   },
   {
     timestamps: true,
