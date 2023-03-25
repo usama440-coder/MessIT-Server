@@ -9,11 +9,13 @@ const {
   loginUser,
   resetPasswordRequest,
   resetPassword,
+  aboutSection,
 } = require("../controllers/user.controller");
 const { protect, permit } = require("../middleware/auth.middleware");
 const singleUpload = require("../middleware/multer.middleware");
 
 userRouter.post("/", protect, permit("admin"), singleUpload, registerUser);
+userRouter.get("/about", protect, aboutSection);
 userRouter.post("/login", loginUser);
 userRouter.get(
   "/",

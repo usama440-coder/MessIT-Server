@@ -443,6 +443,17 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.status(200).json({ success: true, message: "Password has been changed" });
 });
 
+// @desc    About section
+// @route   GET /api/v1/users/about
+// @access  *
+const aboutSection = asyncHandler(async (req, res) => {
+  const secretary = await User.find({ role: "secretary", mess: req.user.mess });
+  const staff = await User.find({ role: "staff", mess: req.user.mess });
+  const cashier = await User.find({ role: "cashier", mess: req.user.mess });
+
+  res.status(200).json({ success: true, secretary, staff, cashier });
+});
+
 module.exports = {
   registerUser,
   getUsers,
@@ -452,4 +463,5 @@ module.exports = {
   loginUser,
   resetPasswordRequest,
   resetPassword,
+  aboutSection,
 };
