@@ -27,6 +27,12 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email });
 
+  // check user is active
+  if (!user.isActive) {
+    res.status(400);
+    throw new Error("Activate your account");
+  }
+
   // user exists and password is correct
   if (user && (await bcrypt.compare(password, user.password))) {
     // generate token

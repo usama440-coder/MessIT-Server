@@ -13,6 +13,7 @@ const billRouter = require("./routes/bill.route");
 const menuRouter = require("./routes/menu.route");
 const balanceRouter = require("./routes/balance.route");
 const statsRouter = require("./routes/stats.route");
+const reviewRouter = require("./routes/review.route");
 const bodyParser = require("body-parser");
 const cloudinary = require("cloudinary");
 require("dotenv").config();
@@ -42,6 +43,7 @@ app.use("/api/v1/bill", billRouter);
 app.use("/api/v1/menu", menuRouter);
 app.use("/api/v1/balance", balanceRouter);
 app.use("/api/v1/stats", statsRouter);
+app.use("/api/v1/review", reviewRouter);
 app.get("*", (req, res) =>
   res.status(404).json({ success: false, message: "404 PAGE NOT FOUND" })
 );
